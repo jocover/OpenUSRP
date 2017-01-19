@@ -2,10 +2,18 @@
 
 FakeUSRP can using LimeSDR to simulate USRP B210 Device
 
+Build Status
+------------
+
+[![Travis Build Status](https://travis-ci.org/jocover/FakeUSRP.svg?branch=master)](https://travis-ci.org/jocover/FakeUSRP)
+
 Dependencies
 ------------
 LimeSuite: [https://github.com/myriadrf/LimeSuite.git][1]
+
 Boost: [http://www.boost.org/users/download/][2]
+
+UHD (optional):[https://github.com/EttusResearch/uhd.git][3]
 
 Installation
 ----------
@@ -23,7 +31,7 @@ echo "INCLUDE_SUBDIRECTORY(FakeUSRP)">>CMakeLists.txt
 
 ```
 Rebuild UHD driver
-[Building and Installing UHD from source][3]
+[Building and Installing UHD from source][4]
 
 ----------
 UHD MODULE mode
@@ -37,13 +45,14 @@ make install
 
 Windows Binarie
 ---------
-x86 version:[FakeUSRP_x86.zip][4]
+x86 version:[FakeUSRP_x86.zip][5]
 
-x64 version:[FakeUSRP_x64.zip][5]
+x64 version:[FakeUSRP_x64.zip][6]
 
 
   [1]: https://github.com/myriadrf/LimeSuite.git
   [2]: http://www.boost.org/users/download/
-  [3]: http://files.ettus.com/manual/page_build_guide.html
-  [4]: https://www.jiangwei.org/download/fackusrp_x86.zip
-  [5]: https://www.jiangwei.org/download/fakeusrp_x64.zip
+  [3]: https://github.com/EttusResearch/uhd.git
+  [4]: http://files.ettus.com/manual/page_build_guide.html
+  [5]: https://www.jiangwei.org/download/fackusrp_x86.zip
+  [6]: https://www.jiangwei.org/download/fakeusrp_x64.zip
