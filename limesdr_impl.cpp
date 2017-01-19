@@ -192,12 +192,12 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 
 	_tree->create<double>(mb_path / "tick_rate")
 		.publish(boost::bind(&limesdr_impl::getMasterClockRate, this))
-		.add_coerced_subscriber(boost::bind(&limesdr_impl::setMasterClockRate, this, _1));
+		.subscribe(boost::bind(&limesdr_impl::setMasterClockRate, this, _1));
 
 
 
 	_tree->create<uhd::time_spec_t>(mb_path / "time" / "cmd")
-		.add_coerced_subscriber(boost::bind(&limesdr_impl::setHardwareTime, this, "CMD", _1));//TODO
+		.subscribe(boost::bind(&limesdr_impl::setHardwareTime, this, "CMD", _1));//TODO
 
 
 	_tree->create<bool>(mb_path / "auto_tick_rate").set(false);
@@ -221,13 +221,13 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 	_tree->create<uhd::usrp::subdev_spec_t>(mb_path / "rx_subdev_spec")
 		.publish(boost::bind(&limesdr_impl::get_frontend_mapping, this, RX_DIRECTION))
 		.set(subdev_spec_t())
-		.add_coerced_subscriber(boost::bind(&limesdr_impl::set_frontend_mapping, this, RX_DIRECTION, _1));
+		.subscribe(boost::bind(&limesdr_impl::set_frontend_mapping, this, RX_DIRECTION, _1));
 
 
 	_tree->create<uhd::usrp::subdev_spec_t>(mb_path / "tx_subdev_spec")
 		.publish(boost::bind(&limesdr_impl::get_frontend_mapping, this, TX_DIRECTION))
 		.set(subdev_spec_t())
-		.add_coerced_subscriber(boost::bind(&limesdr_impl::set_frontend_mapping, this, TX_DIRECTION, _1));
+		.subscribe(boost::bind(&limesdr_impl::set_frontend_mapping, this, TX_DIRECTION, _1));
 
 	////////////////////////////////////////////////////////////////////
 	// setup radio control
@@ -298,10 +298,10 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 
 	_tree->create<uhd::time_spec_t>(mb_path / "time" / "now")
 		.publish(boost::bind(&limesdr_impl::getHardwareTime, this, "NOW"))
-		.add_coerced_subscriber(boost::bind(&limesdr_impl::setHardwareTime, this, "NOW", _1));
+		.subscribe(boost::bind(&limesdr_impl::setHardwareTime, this, "NOW", _1));
 	_tree->create<uhd::time_spec_t>(mb_path / "time" / "pps")
 		.publish(boost::bind(&limesdr_impl::getHardwareTime, this, "PPS"))
-		.add_coerced_subscriber(boost::bind(&limesdr_impl::setHardwareTime, this, "PPS", _1));
+		.subscribe(boost::bind(&limesdr_impl::setHardwareTime, this, "PPS", _1));
 
 	//setup time source props
 
@@ -384,15 +384,15 @@ void limesdr_impl::setup_radio(const size_t dspno) {
 		.publish(boost::bind(&limesdr_impl::getSampleRange, this, RX_DIRECTION, dspno));
 	_tree->create<double>(rx_dsp_path / "rate" / "value")
 		.publish(boost::bind(&limesdr_impl::getSampleRate, this, RX_DIRECTION, dspno))
-		.add_coerced_subscriber(boost::bind(&limesdr_impl::setSampleRate, this, RX_DIRECTION, dspno, _1));
+		.subscribe(boost::bind(&limesdr_impl::setSampleRate, this, RX_DIRECTION, dspno, _1));
 	//dsp freq
 	_tree->create<double>(rx_dsp_path / "freq" / "value")
 		.publish(boost::bind(&limesdr_impl::getFrequency, this, RX_DIRECTION, dspno, "BB"))
-		.add_coerced_subscriber(boost::bind(&limesdr_impl::setFrequency, this, RX_DIRECTION, dspno, "BB", _1));
+		.subscribe(boost::bind(&limesdr_impl::setFrequency, this, RX_DIRECTION, dspno, "BB", _1));
 	_tree->create<uhd::meta_range_t>(rx_dsp_path / "freq" / "range")
 		.publish(boost::bind(&limesdr_impl::getFrequencyRange, this, RX_DIRECTION, dspno, "BB"));
 	_tree->create<uhd::stream_cmd_t>(rx_dsp_path / "stream_cmd")
-		.add_coerced_subscriber(boost::bind(&limesdr_impl::old_issue_stream_cmd, this, dspno, _1));
+		.subscribe(boost::bind(&limesdr_impl::old_issue_stream_cmd, this, dspno, _1));
 
 	////////////////////////////////////////////////////////////////////
 	// create tx dsp control objects
@@ -403,11 +403,11 @@ void limesdr_impl::setup_radio(const size_t dspno) {
 		.publish(boost::bind(&limesdr_impl::getSampleRange, this, TX_DIRECTION, dspno));
 	_tree->create<double>(tx_dsp_path / "rate" / "value")
 		.publish(boost::bind(&limesdr_impl::getSampleRate, this, TX_DIRECTION, dspno))
-		.add_coerced_subscriber(boost::bind(&limesdr_impl::setSampleRate, this, TX_DIRECTION, dspno, _1));
+		.subscribe(boost::bind(&limesdr_impl::setSampleRate, this, TX_DIRECTION, dspno, _1));
 	//dsp freq
 	_tree->create<double>(tx_dsp_path / "freq" / "value")
 		.publish(boost::bind(&limesdr_impl::getFrequency, this, TX_DIRECTION, dspno, "BB"))
-		.add_coerced_subscriber(boost::bind(&limesdr_impl::setFrequency, this, TX_DIRECTION, dspno, "BB", _1));
+		.subscribe(boost::bind(&limesdr_impl::setFrequency, this, TX_DIRECTION, dspno, "BB", _1));
 	_tree->create<uhd::meta_range_t>(tx_dsp_path / "freq" / "range")
 		.publish(boost::bind(&limesdr_impl::getFrequencyRange, this, TX_DIRECTION, dspno, "BB"));
 
@@ -432,7 +432,7 @@ void limesdr_impl::setup_radio(const size_t dspno) {
 		_tree->create<meta_range_t>(rf_fe_path / "gains" / "PGA" / "range").publish(boost::bind(&limesdr_impl::getGainRange, this, dir, dspno, "PGA"));
 		_tree->create<double>(rf_fe_path / "gains" / "PGA" / "value")
 			.publish(boost::bind(&limesdr_impl::getGain, this, dir, dspno, "Normal"))
-			.add_coerced_subscriber(boost::bind(&limesdr_impl::setGain, this, dir, dspno, "Normal", _1));
+			.subscribe(boost::bind(&limesdr_impl::setGain, this, dir, dspno, "Normal", _1));
 
 
 		_tree->create<std::string>(rf_fe_path / "connection").set("IQ");
@@ -442,13 +442,13 @@ void limesdr_impl::setup_radio(const size_t dspno) {
 
 		_tree->create<double>(rf_fe_path / "bandwidth" / "value")
 			.publish(boost::bind(&limesdr_impl::getBandwidth, this, dir, dspno))
-			.add_coerced_subscriber(boost::bind(&limesdr_impl::setBandwidth, this, dir, dspno, _1));
+			.subscribe(boost::bind(&limesdr_impl::setBandwidth, this, dir, dspno, _1));
 		_tree->create<uhd::meta_range_t>(rf_fe_path / "bandwidth" / "range")
 			.publish(boost::bind(&limesdr_impl::getBandwidthRange, this, dir, dspno));
 
 		_tree->create<double>(rf_fe_path / "freq" / "value")
 			.publish(boost::bind(&limesdr_impl::getFrequency, this, dir, dspno, "RF"))
-			.add_coerced_subscriber(boost::bind(&limesdr_impl::setFrequency, this, dir, dspno, "RF", _1));
+			.subscribe(boost::bind(&limesdr_impl::setFrequency, this, dir, dspno, "RF", _1));
 		_tree->create<uhd::meta_range_t>(rf_fe_path / "freq" / "range")
 			.publish(boost::bind(&limesdr_impl::getFrequencyRange, this, dir, dspno, "RF"));
 
@@ -457,7 +457,7 @@ void limesdr_impl::setup_radio(const size_t dspno) {
 
 			_tree->create<bool>(rf_fe_path / "dc_offset/enable")
 				.publish(boost::bind(&limesdr_impl::getDCOffsetMode, this, dir, dspno))
-				.add_coerced_subscriber(boost::bind(&limesdr_impl::setDCOffsetMode, this, dir, dspno, _1));
+				.subscribe(boost::bind(&limesdr_impl::setDCOffsetMode, this, dir, dspno, _1));
 
 			_tree->create<bool>(rf_fe_path / "iq_balance/enable").set(true);
 
@@ -478,7 +478,7 @@ void limesdr_impl::setup_radio(const size_t dspno) {
 
 				_tree->create<filter_info_base::sptr>(rf_fe_path / "filters" / filter_name / "value")
 					.publish(boost::bind(&limesdr_impl::getFilter, this, dir, dspno, filter_name))
-					.add_coerced_subscriber(boost::bind(&limesdr_impl::setFilter, this, dir, dspno, filter_name, _1));
+					.subscribe(boost::bind(&limesdr_impl::setFilter, this, dir, dspno, filter_name, _1));
 			}
 		}
 
@@ -490,7 +490,7 @@ void limesdr_impl::setup_radio(const size_t dspno) {
 
 				_tree->create<filter_info_base::sptr>(rf_fe_path / "filters" / filter_name / "value")
 					.publish(boost::bind(&limesdr_impl::getFilter, this, dir, dspno, filter_name))
-					.add_coerced_subscriber(boost::bind(&limesdr_impl::setFilter, this, dir, dspno, filter_name, _1));
+					.subscribe(boost::bind(&limesdr_impl::setFilter, this, dir, dspno, filter_name, _1));
 
 			}
 		}
@@ -502,7 +502,7 @@ void limesdr_impl::setup_radio(const size_t dspno) {
 			_tree->create<std::vector<std::string> >(rf_fe_path / "antenna" / "options")
 				.publish(boost::bind(&limesdr_impl::listAntennas, this, dir, dspno));
 			_tree->create<std::string>(rf_fe_path / "antenna" / "value")
-				.add_coerced_subscriber(boost::bind(&limesdr_impl::setAntenna, this, dir, dspno, _1))
+				.subscribe(boost::bind(&limesdr_impl::setAntenna, this, dir, dspno, _1))
 				.publish(boost::bind(&limesdr_impl::getAntenna, this, dir, dspno));
 
 		}
@@ -512,7 +512,7 @@ void limesdr_impl::setup_radio(const size_t dspno) {
 			_tree->create<std::vector<std::string> >(rf_fe_path / "antenna" / "options")
 				.publish(boost::bind(&limesdr_impl::listAntennas, this, dir, dspno));
 			_tree->create<std::string>(rf_fe_path / "antenna" / "value")
-				.add_coerced_subscriber(boost::bind(&limesdr_impl::setAntenna, this, dir, dspno, _1))
+				.subscribe(boost::bind(&limesdr_impl::setAntenna, this, dir, dspno, _1))
 				.publish(boost::bind(&limesdr_impl::getAntenna, this, dir, dspno));
 		}
 
