@@ -135,7 +135,7 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 
 
 
-	UHD_MSG(status) << "Using FakeUSRP Lib" << std::endl;
+	UHD_MSG(status) << "Using FakeUSRP" << std::endl;
 
 	_conn = ConnectionRegistry::makeConnection(handle);
 	

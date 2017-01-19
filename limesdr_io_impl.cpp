@@ -25,9 +25,6 @@
 #include <algorithm>
 #include <set>
 
-
-
-
 using namespace uhd;
 using namespace uhd::usrp;
 using namespace lime;
@@ -1073,7 +1070,6 @@ void limesdr_impl::setBandwidth(const uhd::direction_t direction, const size_t c
 	if (bw<1000000. or bw >60000000.0) return;
 
 	boost::unique_lock<boost::recursive_mutex> lock(_accessMutex);
-	//SoapySDR::logf(SOAPY_SDR_INFO, "SoapyLMS7::setBandwidth(%s, %d, %g MHz)", dirName, int(channel), bw / 1e6);
 
 	//save dc offset mode
 	auto saveDcMode = this->getDCOffsetMode(direction, channel);

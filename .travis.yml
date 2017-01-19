@@ -13,7 +13,7 @@ language: cpp
 
 os:
   - linux
-  - osx
+# - osx
   
 env:
   global:
