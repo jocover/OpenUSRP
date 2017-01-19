@@ -1,0 +1,67 @@
+########################################################################
+## Travis CI config for FackUSRP
+##
+## * not all components will be configured
+## * the matrix builds Release and Debug
+## * run the self tests after install
+########################################################################
+
+sudo: required
+dist: trusty
+
+language: cpp
+
+compiler:
+  - clang
+  - gcc
+
+os:
+  - linux
+  - osx
+  
+env:
+  global:
+    - BUILD_TYPE=Release
+
+
+before_install:
+  
+  
+  # update after package changes
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get -qq update; fi;
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
+
+    # install development dependencies
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install -qq libusb-1.0-0-dev libboost-all-dev;fi;
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install libusb; fi
+
+  - pip install mako
+
+install:
+  # install LimeSuite from source
+  - git clone --depth=1 https://github.com/myriadrf/LimeSuite.git
+  - pushd LimeSuite
+  - mkdir temp && cd temp
+  - cmake ../ -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+  - make -j4
+  - sudo make install
+  - popd
+
+  # install UHD from source
+  - git clone --depth=1 https://github.com/EttusResearch/uhd.git
+  - pushd uhd/host
+  - pushd lib/usrp
+  - git clone https://github.com/jocover/FakeUSRP.git
+  - echo "INCLUDE_SUBDIRECTORY(FakeUSRP)">>CMakeLists.txt
+  - popd
+  - mkdir build && cd build
+  - cmake ../ -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+  - make -j4
+  - sudo make install
+  - popd
+
+script:
+  - mkdir build && cd build
+  - cmake ../ -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+  - make -j4
+  - sudo make install
