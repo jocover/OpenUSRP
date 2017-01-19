@@ -98,7 +98,7 @@ static IConnectionStream *make_stream(limesdr_impl *d, const uhd::direction_t di
 		else if (ch == 'f') hostFormat += "F";
 		else if (ch == 's') hostFormat += "S";
 		else if (std::isdigit(ch)) hostFormat += ch;
-		else throw uhd::runtime_error("FackUSRP::setupStream(" + args.cpu_format + ") unknown format");
+		else throw uhd::runtime_error("FakeUSRP::setupStream(" + args.cpu_format + ") unknown format");
 	}
 
 	return d->setupStream(direction, hostFormat, chans, args);
@@ -791,10 +791,10 @@ static double calculateClockRate(
 		return bestClockRate;
 
 	UHD_MSG(error) << boost::format(
-		"FackUSRP::setSampleRate(Rx %g MHz, Tx %g MHz) Failed -- no common clock rate.\n"
+		"FakeUSRP::setSampleRate(Rx %g MHz, Tx %g MHz) Failed -- no common clock rate.\n"
 	) % (rateRx / 1e6) % (rateTx / 1e6) << std::endl;
 
-	throw uhd::runtime_error("FackUSRP::setSampleRate() -- no common clock rate");
+	throw uhd::runtime_error("FakeUSRP::setSampleRate() -- no common clock rate");
 }
 
 
@@ -832,7 +832,7 @@ void limesdr_impl::setSampleRate(const uhd::direction_t direction, const size_t 
 
 	if (std::abs(factor - intFactor) > 0.01)
 		UHD_MSG(warning) << boost::format(
-			"FackUSRP::setSampleRate(): not a power of two factor.\n"
+			"FakeUSRP::setSampleRate(): not a power of two factor.\n"
 			"TSP Rate = %g MHZ, Requested rate = %g MHz.\n"
 		) % (dspRate / 1e6) % (rate / 1e6) << std::endl;
 
@@ -1034,7 +1034,7 @@ void limesdr_impl::setAntenna(const uhd::direction_t direction, const size_t cha
 		else if (name == "LNAW") path = LMS7002M::PATH_RFE_LNAW;
 		else if (name == "LB1") path = LMS7002M::PATH_RFE_LB1;
 		else if (name == "LB2") path = LMS7002M::PATH_RFE_LB2;
-		else throw uhd::runtime_error("FackUSRP::setAntenna(RX, " + name + ") - unknown antenna name");
+		else throw uhd::runtime_error("FakeUSRP::setAntenna(RX, " + name + ") - unknown antenna name");
 
 		rfic->SetPathRFE(path);
 	}
@@ -1045,7 +1045,7 @@ void limesdr_impl::setAntenna(const uhd::direction_t direction, const size_t cha
 		if (name == "NONE") band = 0;
 		else if (name == "BAND1" or name == "TX/RX") band = 1;
 		else if (name == "BAND2") band = 2;
-		else throw uhd::runtime_error("FackUSRP::setAntenna(TX, " + name + ") - unknown antenna name");
+		else throw uhd::runtime_error("FakeUSRP::setAntenna(TX, " + name + ") - unknown antenna name");
 
 		rfic->SetBandTRF(band);
 	}
@@ -1088,9 +1088,9 @@ void limesdr_impl::setBandwidth(const uhd::direction_t direction, const size_t c
 		if (rfic->TuneRxFilterWithCaching(bw) != 0)
 		{
 			UHD_MSG(error) << boost::format(
-				"FackUSRP::setBandwidth(Rx, %d, %g MHz) Failed .\n"
+				"FakeUSRP::setBandwidth(Rx, %d, %g MHz) Failed .\n"
 			) % (int(channel)) % (bw / 1e6) << std::endl;
-			throw uhd::runtime_error("FackUSRP::setRXBandwidth");
+			throw uhd::runtime_error("FakeUSRP::setRXBandwidth");
 		}
 	}
 
@@ -1099,9 +1099,9 @@ void limesdr_impl::setBandwidth(const uhd::direction_t direction, const size_t c
 		if (rfic->TuneTxFilterWithCaching(bw) != 0)
 		{
 			UHD_MSG(error) << boost::format(
-				"FackUSRP::setBandwidth(Tx, %d, %g MHz) Failed .\n"
+				"FakeUSRP::setBandwidth(Tx, %d, %g MHz) Failed .\n"
 			) % (int(channel)) % (bw / 1e6) << std::endl;
-			throw uhd::runtime_error("FackUSRP::setTXBandwidth)");
+			throw uhd::runtime_error("FakeUSRP::setTXBandwidth)");
 		}
 	}
 
@@ -1152,7 +1152,7 @@ LMS7002M * limesdr_impl::getRFIC(const size_t channel) const {
 
 	if (_rfics.size() <= channel / 2)
 	{
-		throw std::out_of_range("FackUSRP::getRFIC(" + std::to_string(channel) + ") out of range");
+		throw std::out_of_range("FakeUSRP::getRFIC(" + std::to_string(channel) + ") out of range");
 	}
 	auto rfic = _rfics.at(channel / 2);
 	rfic->SetActiveChannel(((channel % 2) == 0) ? LMS7002M::ChA : LMS7002M::ChB);
@@ -1245,7 +1245,7 @@ double limesdr_impl::getGain(const uhd::direction_t direction, const size_t chan
 		return rfic->GetTRFLoopbackPAD_dB();
 	}
 
-	else throw uhd::runtime_error("FackUSRP::getGain(" + name + ") - unknown gain name");
+	else throw uhd::runtime_error("FakeUSRP::getGain(" + name + ") - unknown gain name");
 
 }
 

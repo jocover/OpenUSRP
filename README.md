@@ -54,5 +54,5 @@ x64 version:[FakeUSRP_x64.zip][6]
   [2]: http://www.boost.org/users/download/
   [3]: https://github.com/EttusResearch/uhd.git
   [4]: http://files.ettus.com/manual/page_build_guide.html
-  [5]: https://www.jiangwei.org/download/fackusrp_x86.zip
+  [5]: https://www.jiangwei.org/download/fakeusrp_x86.zip
   [6]: https://www.jiangwei.org/download/fakeusrp_x64.zip
