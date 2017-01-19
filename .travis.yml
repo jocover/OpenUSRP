@@ -1,5 +1,5 @@
 ########################################################################
-## Travis CI config for FackUSRP
+## Travis CI config for FakeUSRP
 ##
 ## * not all components will be configured
 ## * the matrix builds Release and Debug
@@ -11,13 +11,9 @@ dist: trusty
 
 language: cpp
 
-compiler:
-  - clang
-  - gcc
-
 os:
   - linux
-# - osx
+  - osx
   
 env:
   global:
