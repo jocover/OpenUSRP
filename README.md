@@ -5,7 +5,9 @@ FakeUSRP can using LimeSDR to simulate USRP B210 Device
 Build Status
 ------------
 
-[![Travis Build Status](https://travis-ci.org/jocover/FakeUSRP.svg?branch=master)](https://travis-ci.org/jocover/FakeUSRP)
+Travis:[![Travis Build Status](https://travis-ci.org/jocover/FakeUSRP.svg?branch=master)](https://travis-ci.org/jocover/FakeUSRP)
+
+AppVeyor: [![Build status](https://ci.appveyor.com/api/projects/status/8ey0pyrf8l4kyh8l?svg=true)](https://ci.appveyor.com/project/jocover/fakeusrp)
 
 Dependencies
 ------------
