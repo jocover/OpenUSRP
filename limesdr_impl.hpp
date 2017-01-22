@@ -122,6 +122,7 @@ private:
 	boost::recursive_mutex _accessMutex;
 
 	bool _fixedClockRate;
+	bool _autoTickRate;
 	std::map<size_t, bool> _fixedRxSampRate;
 	std::map<size_t, bool> _fixedTxSampRate;
 
@@ -172,6 +173,8 @@ private:
 	void setIQBalance(const uhd::direction_t direction, const size_t channel, const std::complex<double> &balance);
 
 	bool getDCOffsetMode(const uhd::direction_t direction, const size_t channel);
+
+	void setAutoTickRate(const bool enable);
 
 
 	uhd::filter_info_base::sptr getFilter(const uhd::direction_t dir, const size_t channel, const std::string &name);

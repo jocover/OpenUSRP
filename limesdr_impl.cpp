@@ -200,7 +200,7 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 		.subscribe(boost::bind(&limesdr_impl::setHardwareTime, this, "CMD", _1));//TODO
 
 
-	_tree->create<bool>(mb_path / "auto_tick_rate").set(false);
+	_tree->create<bool>(mb_path / "auto_tick_rate").set(false).subscribe(boost::bind(&limesdr_impl::setAutoTickRate, this, _1));
 
 	////////////////////////////////////////////////////////////////////
 	// and do the misc mboard sensors
@@ -351,6 +351,8 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 	//init to internal clock and time source
 	_tree->access<std::string>(mb_path / "clock_source/value").set("internal");
 	_tree->access<std::string>(mb_path / "time_source/value").set("internal");
+
+	_tree->access<bool>(mb_path / "auto_tick_rate").set(not device_addr.has_key("master_clock_rate"));
 
 }
 

@@ -802,6 +802,13 @@ void limesdr_impl::setSampleRate(const uhd::direction_t direction, const size_t 
 	LMS7002M_SelfCalState state(rfic);
 	const auto lmsDir = (direction == TX_DIRECTION) ? LMS7002M::Tx : LMS7002M::Rx;
 
+	if (_autoTickRate) {
+		double cgen = rate * 8;
+		if (cgen > MAX_CGEN_RATE)
+			uhd::runtime_error("SampleRate out of range");
+		this->setMasterClockRate(cgen);
+	}
+
 	double clockRate = this->getMasterClockRate();
 	const double dspFactor = clockRate / rfic->GetReferenceClk_TSP(lmsDir);
 
@@ -825,7 +832,7 @@ void limesdr_impl::setSampleRate(const uhd::direction_t direction, const size_t 
 	if (intFactor < 2) throw uhd::runtime_error(str(boost::format("FakeUSRP::setSampleRate(%g) -- rate too high") % (rate)));
 	if (intFactor > 32) throw uhd::runtime_error(str(boost::format("FakeUSRP::setSampleRate(%g) -- rate too low") % (rate)));
 
-	
+
 
 	if (std::abs(factor - intFactor) > 0.01)
 		UHD_MSG(warning) << boost::format(
@@ -892,9 +899,6 @@ void limesdr_impl::setFrequency(const uhd::direction_t direction, const size_t c
 		if (targetRfFreq < 30e6) targetRfFreq = 30e6;
 		if (targetRfFreq > 3.8e9) targetRfFreq = 3.8e9;
 		rfic->SetFrequencySX(lmsDir, targetRfFreq);
-
-		//optional way to skip corrections (used by cal utility)
-//		if (args.count("CORRECTIONS") != 0 and args.at("CORRECTIONS") == "false") return;
 
 		//apply corrections to channel A
 		rfic->SetActiveChannel(LMS7002M::ChA);
@@ -1443,6 +1447,10 @@ double limesdr_impl::getMasterClockRate(void) {
 void limesdr_impl::setMasterClockRate(const double rate) {
 
 	boost::unique_lock<boost::recursive_mutex> lock(_accessMutex);
+
+	if (rate > MAX_CGEN_RATE)
+		UHD:runtime_error("Master Clock out of range");
+
 	for (auto rfic : _rfics)
 	{
 		//make tx rx rates equal
@@ -1460,5 +1468,11 @@ uhd::filter_info_base::sptr limesdr_impl::getFilter(const uhd::direction_t dir, 
 }
 
 void limesdr_impl::setFilter(const uhd::direction_t dir, const size_t channel, const std::string &name, const filter_info_base::sptr filter) {
+
+}
+
+void limesdr_impl::setAutoTickRate(const bool enable) {
+
+	_autoTickRate = enable;
 
 }
