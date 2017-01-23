@@ -292,7 +292,6 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 		this->setIQBalance(TX_DIRECTION, channel, 1.0);
 	}
 
-	_fixedClockRate = false;
 	_fixedRxSampRate.clear();
 	_fixedTxSampRate.clear();
 

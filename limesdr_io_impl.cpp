@@ -680,7 +680,7 @@ uhd::meta_range_t limesdr_impl::getSampleRange(const uhd::direction_t direction,
 	const bool fixedTx = _fixedTxSampRate.count(channel) != 0 and _fixedTxSampRate.at(channel);
 
 	//clock rate is fixed, only half-band chain is configurable
-	if (_fixedClockRate)
+	if (not _autoTickRate)
 	{
 		for (int i = 32; i >= 2; i /= 2) rates.push_back(dspRate / i);
 	}
@@ -802,18 +802,11 @@ void limesdr_impl::setSampleRate(const uhd::direction_t direction, const size_t 
 	LMS7002M_SelfCalState state(rfic);
 	const auto lmsDir = (direction == TX_DIRECTION) ? LMS7002M::Tx : LMS7002M::Rx;
 
-	if (_autoTickRate) {
-		double cgen = rate * 8;
-		if (cgen > MAX_CGEN_RATE)
-			uhd::runtime_error("SampleRate out of range");
-		this->setMasterClockRate(cgen);
-	}
-
 	double clockRate = this->getMasterClockRate();
 	const double dspFactor = clockRate / rfic->GetReferenceClk_TSP(lmsDir);
 
 	//select automatic clock rate
-	if (not _fixedClockRate)
+	if (_autoTickRate)
 	{
 		double rxRate = rate, txRate = rate;
 		if (direction != RX_DIRECTION and _fixedRxSampRate[channel]) rxRate = this->getSampleRate(RX_DIRECTION, channel);
@@ -1458,7 +1451,6 @@ void limesdr_impl::setMasterClockRate(const double rate) {
 		rfic->Modify_SPI_Reg_bits(LMS7param(CLKH_OV_CLKL_CGEN), 2);
 		rfic->SetFrequencyCGEN(rate);
 	}
-	_fixedClockRate = true;
 
 }
 
