@@ -554,7 +554,7 @@ public:
 		size_t nsamps_per_buff = _nsamps_per_buff;
 		size_t total = 0;
 		if (nsamps_per_buff == 0)
-            return 0;
+			return 0;
 		const long long timeNs(md.time_spec.to_ticks(1e9));
 
 		while (total < nsamps_per_buff)
@@ -962,57 +962,6 @@ void limesdr_impl::old_issue_stream_cmd(const size_t chan, const uhd::stream_cmd
 	if (stream) stream->issue_stream_cmd(cmd);
 }
 
-std::vector<std::string> limesdr_impl::listAntennas(const uhd::direction_t dir, const size_t chan) {
-
-	std::vector<std::string> ants;
-
-	if (dir == TX_DIRECTION) {
-
-		ants.push_back("TX/RX");
-
-	}
-
-	if (dir == RX_DIRECTION) {
-
-		ants.push_back("TX/RX");
-		ants.push_back("RX2");
-
-	}
-
-	return ants;
-}
-
-std::string limesdr_impl::getAntenna(const uhd::direction_t direction, const size_t channel) {
-
-	boost::unique_lock<boost::recursive_mutex> lock(_accessMutex);
-	auto rfic = getRFIC(channel);
-
-	if (direction == RX_DIRECTION)
-	{
-		switch (rfic->GetPathRFE())
-		{
-		case LMS7002M::PATH_RFE_NONE: return "NONE";
-		case LMS7002M::PATH_RFE_LNAH: return "TX/RX";
-		case LMS7002M::PATH_RFE_LNAL: return "RX2";
-		case LMS7002M::PATH_RFE_LNAW: return "LNAW";
-		case LMS7002M::PATH_RFE_LB1: return "LB1";
-		case LMS7002M::PATH_RFE_LB2: return "LB2";
-		}
-	}
-
-	if (direction == TX_DIRECTION)
-	{
-		switch (rfic->GetBandTRF())
-		{
-		case 1: return "TX/RX";
-		case 2: return "BAND2";
-		default: return "NONE";
-		}
-	}
-
-	return "";
-
-}
 
 void limesdr_impl::setAntenna(const uhd::direction_t direction, const size_t channel, const std::string &name) {
 

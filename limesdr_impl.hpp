@@ -155,10 +155,6 @@ private:
 
 	void old_issue_stream_cmd(const size_t chan, const uhd::stream_cmd_t &cmd);
 
-	std::vector<std::string> listAntennas(const uhd::direction_t, const size_t);
-
-	std::string getAntenna(const uhd::direction_t, const size_t channel);
-
 	void setAntenna(const uhd::direction_t, const size_t channel, const std::string &name);
 
 	double getBandwidth(const uhd::direction_t dir, const size_t channel);

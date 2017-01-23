@@ -114,12 +114,12 @@ static device::sptr limesdr_make(const device_addr_t &device_addr) {
 
 UHD_STATIC_BLOCK(register_limesdr_device)
 {
-  #ifdef UHD_HAS_DEVICE_FILTER
+#ifdef UHD_HAS_DEVICE_FILTER
 	device::register_device(&limesdr_find, &limesdr_make, device::USRP);
-	#else
+#else
 	device::register_device(&limesdr_find, &limesdr_make);
-	#endif
-	  
+#endif
+
 }
 
 
@@ -138,7 +138,7 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 	UHD_MSG(status) << "Using FakeUSRP" << std::endl;
 
 	_conn = ConnectionRegistry::makeConnection(handle);
-	
+
 	if (_conn == nullptr) throw uhd::runtime_error(
 		"Failed to make connection with '" + handle.serialize() + "'");
 	////////////////////////////////////////////////////////////////////
@@ -150,12 +150,12 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 
 	uhd::usrp::mboard_eeprom_t mb_eeprom;
 	mb_eeprom["revision"] = devInfo.hardwareVersion;
-
-	std::cout << "hardwareVersion:" << devInfo.hardwareVersion << std::endl;
+	mb_eeprom["product"] = "2";
+	mb_eeprom["serial"] = str(boost::format("%X") % uint32_t(devInfo.boardSerialNumber));
 
 	_tree->create<uhd::usrp::mboard_eeprom_t>(mb_path / "eeprom").set(mb_eeprom);
-	_tree->create<std::string>(mb_path / "fw_version").set("8.0");
-	_tree->create<std::string>(mb_path / "fpga_version").set("10.0");
+	_tree->create<std::string>(mb_path / "fw_version").set(devInfo.firmwareVersion);
+	_tree->create<std::string>(mb_path / "fpga_version").set(str(boost::format("%s.%s") % devInfo.gatewareVersion%devInfo.gatewareRevision));
 
 
 	////////////////////////////////////////////////////////////////////
@@ -255,7 +255,7 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 		calStates[i].reset(new LMS7002M_SelfCalState(_rfics.back()));
 
 
-		
+
 	}
 
 
@@ -265,7 +265,7 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 		rfic->EnableChannel(LMS7002M::Tx, true);
 		rfic->EnableChannel(LMS7002M::Rx, true);
 
-        setup_radio(channel);
+		setup_radio(channel);
 	}
 	double defaultClockRate = DEFAULT_CLOCK_RATE;
 
@@ -425,9 +425,9 @@ void limesdr_impl::setup_radio(const size_t dspno) {
 
 		_tree->create<std::string>(rf_fe_path / "name").set("FE-" + key);
 		_tree->create<uhd::sensor_value_t>(rf_fe_path / "sensors/temp").publish(boost::bind(&limesdr_impl::get_temp, this));
-		_tree->create<uhd::sensor_value_t>(rf_fe_path / "sensors/lo_locked").publish(boost::bind(&limesdr_impl::get_lo_locked, this,dir,dspno));
+		_tree->create<uhd::sensor_value_t>(rf_fe_path / "sensors/lo_locked").publish(boost::bind(&limesdr_impl::get_lo_locked, this, dir, dspno));
 
-		
+
 
 		if (dir == RX_DIRECTION) {
 			_tree->create<uhd::sensor_value_t>(rf_fe_path / "sensors/rssi");
@@ -502,22 +502,20 @@ void limesdr_impl::setup_radio(const size_t dspno) {
 		//TODO LimeSDR have 3 RX ant and 2 TX ant 
 		if (dir == RX_DIRECTION)
 		{
-
-			_tree->create<std::vector<std::string> >(rf_fe_path / "antenna" / "options")
-				.publish(boost::bind(&limesdr_impl::listAntennas, this, dir, dspno));
+			static const std::vector<std::string> ants = boost::assign::list_of("TX/RX")("RX2");
+			_tree->create<std::vector<std::string> >(rf_fe_path / "antenna" / "options").set(ants);
 			_tree->create<std::string>(rf_fe_path / "antenna" / "value")
 				.subscribe(boost::bind(&limesdr_impl::setAntenna, this, dir, dspno, _1))
-				.publish(boost::bind(&limesdr_impl::getAntenna, this, dir, dspno));
+				.set("RX2");
 
 		}
 		else if (dir == TX_DIRECTION)
 		{
-
-			_tree->create<std::vector<std::string> >(rf_fe_path / "antenna" / "options")
-				.publish(boost::bind(&limesdr_impl::listAntennas, this, dir, dspno));
+			static const std::vector<std::string> ants(1, "TX/RX");
+			_tree->create<std::vector<std::string> >(rf_fe_path / "antenna" / "options").set(ants);
 			_tree->create<std::string>(rf_fe_path / "antenna" / "value")
 				.subscribe(boost::bind(&limesdr_impl::setAntenna, this, dir, dspno, _1))
-				.publish(boost::bind(&limesdr_impl::getAntenna, this, dir, dspno));
+				.set("TX/RX");
 		}
 
 	}
