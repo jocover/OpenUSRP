@@ -371,7 +371,8 @@ public:
 		_device(d),
 		_stream(make_stream(d, RX_DIRECTION, args)),
 		_nchan(std::max<size_t>(1, args.channels.size())),
-		_elemSize(uhd::convert::get_bytes_per_item(args.cpu_format))
+		_elemSize(uhd::convert::get_bytes_per_item(args.cpu_format)),
+		_activated(false)
 	{
 		_offsetBuffs.resize(_nchan);
 
@@ -498,8 +499,20 @@ public:
 		}
 
 		int ret = 0;
-		if (activate) ret = _device->activateStream(_stream, flags, timeNs, numElems);
-		else ret = _device->deactivateStream(_stream, flags, timeNs);
+		if (activate) {
+			if (!_activated) {
+				ret = _device->activateStream(_stream, flags, timeNs, numElems);
+				_activated = true;
+			}
+
+		}		
+		else {
+			if (_activated) {
+				ret = _device->deactivateStream(_stream, flags, timeNs);
+				_activated = false;
+			}
+			
+		} 
 		if (ret != 0) throw uhd::runtime_error(str(boost::format("LimeRxStream::issue_stream_cmd() = %d") % ret));
 
 
@@ -509,6 +522,7 @@ private:
 
 	limesdr_impl * _device;
 	IConnectionStream * _stream;
+	bool _activated;
 	const size_t _nchan;
 	const size_t _elemSize;
 	std::vector<void *> _offsetBuffs;
@@ -523,15 +537,18 @@ public:
 		_device(d),
 		_stream(make_stream(d, TX_DIRECTION, args)),
 		_nchan(std::max<size_t>(1, args.channels.size())),
-		_elemSize(uhd::convert::get_bytes_per_item(args.cpu_format))
+		_elemSize(uhd::convert::get_bytes_per_item(args.cpu_format)), \
+		_activated(false)
 	{
 		_offsetBuffs.resize(_nchan);
-		_device->activateStream(_stream, 0, 0, 0);
+
 	}
 	~LimeTxStream(void) {
-		_device->deactivateStream(_stream, 0, 0);
-		_device->closeStream(_stream);
 
+		if (_activated) {
+			_device->deactivateStream(_stream, 0, 0);
+			_device->closeStream(_stream);
+		}
 	}
 
 	size_t get_num_channels(void) const
@@ -551,11 +568,18 @@ public:
 		const double timeout = 0.1
 	) {
 
+
+
 		size_t nsamps_per_buff = _nsamps_per_buff;
 		size_t total = 0;
 		if (nsamps_per_buff == 0)
 			return 0;
 		const long long timeNs(md.time_spec.to_ticks(1e9));
+
+		if (!_activated) {
+			_device->activateStream(_stream, 0, 0, 0);
+			_activated = true;
+		}
 
 		while (total < nsamps_per_buff)
 		{
@@ -628,6 +652,7 @@ private:
 	limesdr_impl * _device;
 	IConnectionStream * _stream;
 
+	bool _activated;
 	const size_t _nchan;
 	const size_t _elemSize;
 	std::vector<const void *> _offsetBuffs;
