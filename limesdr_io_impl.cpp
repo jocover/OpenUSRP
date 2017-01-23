@@ -553,7 +553,8 @@ public:
 
 		size_t nsamps_per_buff = _nsamps_per_buff;
 		size_t total = 0;
-		if (nsamps_per_buff == 0) nsamps_per_buff = 1;
+		if (nsamps_per_buff == 0)
+            return 0;
 		const long long timeNs(md.time_spec.to_ticks(1e9));
 
 		while (total < nsamps_per_buff)
