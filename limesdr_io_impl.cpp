@@ -1378,6 +1378,12 @@ uhd::sensor_value_t limesdr_impl::get_ref_locked(void)
 	return sensor_value_t("Ref", ref_lock, "locked", "unlocked");
 }
 
+uhd::sensor_value_t limesdr_impl::get_lo_locked(const uhd::direction_t dir, const size_t channel) {
+
+	return sensor_value_t("LO", false, "locked", "unlocked");
+
+}
+
 uhd::usrp::subdev_spec_t  limesdr_impl::get_frontend_mapping(const uhd::direction_t dir) {
 
 	uhd::usrp::subdev_spec_t spec;
@@ -1442,7 +1448,7 @@ void limesdr_impl::setMasterClockRate(const double rate) {
 	boost::unique_lock<boost::recursive_mutex> lock(_accessMutex);
 
 	if (rate > MAX_CGEN_RATE)
-		UHD:runtime_error("Master Clock out of range");
+		uhd::runtime_error("Master Clock out of range");
 
 	for (auto rfic : _rfics)
 	{

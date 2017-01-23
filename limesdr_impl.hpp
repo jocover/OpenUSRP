@@ -186,6 +186,8 @@ private:
 
 	uhd::sensor_value_t get_ref_locked(void);
 
+	uhd::sensor_value_t get_lo_locked(const uhd::direction_t dir, const size_t channel);
+
 	void error(void);
 
 }

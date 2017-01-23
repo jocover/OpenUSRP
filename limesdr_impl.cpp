@@ -425,6 +425,9 @@ void limesdr_impl::setup_radio(const size_t dspno) {
 
 		_tree->create<std::string>(rf_fe_path / "name").set("FE-" + key);
 		_tree->create<uhd::sensor_value_t>(rf_fe_path / "sensors/temp").publish(boost::bind(&limesdr_impl::get_temp, this));
+		_tree->create<uhd::sensor_value_t>(rf_fe_path / "sensors/lo_locked").publish(boost::bind(&limesdr_impl::get_lo_locked, this,dir,dspno));
+
+		
 
 		if (dir == RX_DIRECTION) {
 			_tree->create<uhd::sensor_value_t>(rf_fe_path / "sensors/rssi");
