@@ -11,9 +11,12 @@ dist: trusty
 
 language: cpp
 
-os:
-  - linux
-# - osx
+matrix:
+  include:
+    - os: linux
+      compiler: gcc
+    - os: osx
+      compiler: clang
   
 env:
   global:
