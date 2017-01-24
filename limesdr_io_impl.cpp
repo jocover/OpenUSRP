@@ -1340,9 +1340,7 @@ uhd::meta_range_t limesdr_impl::getGainRange(const uhd::direction_t dir, const s
 
 uhd::sensor_value_t limesdr_impl::get_temp() {
 
-	float_type temp;
-
-	return uhd::sensor_value_t("temp", boost::lexical_cast<std::string>(temp), "c");
+	return uhd::sensor_value_t("temp", _rfics.front()->GetTemperature(), "C");
 
 }
 
