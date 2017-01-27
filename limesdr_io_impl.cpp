@@ -95,7 +95,7 @@ static IConnectionStream *make_stream(limesdr_impl *d, const uhd::direction_t di
 		else if (ch == 'f') hostFormat += "F";
 		else if (ch == 's') hostFormat += "S";
 		else if (std::isdigit(ch)) hostFormat += ch;
-		else throw uhd::runtime_error("FakeUSRP::setupStream(" + args.cpu_format + ") unknown format");
+		else throw uhd::runtime_error("OpenUSRP::setupStream(" + args.cpu_format + ") unknown format");
 	}
 
 	return d->setupStream(direction, hostFormat, chans, args);
@@ -122,13 +122,13 @@ IConnectionStream* limesdr_impl::setupStream(const uhd::direction_t direction, c
 		if (format == "CF32") config.format = StreamConfig::STREAM_COMPLEX_FLOAT32;
 		else if (format == "CS16") config.format = StreamConfig::STREAM_12_BIT_IN_16;
 		else if (format == "CS12") config.format = StreamConfig::STREAM_12_BIT_COMPRESSED;
-		else throw uhd::runtime_error("FakeUSRP::setupStream(format=" + format + ") unsupported format");
+		else throw uhd::runtime_error("OpenUSRP::setupStream(format=" + format + ") unsupported format");
 
 		//create the stream
 		size_t streamID(~0);
 		const int status = _conn->SetupStream(streamID, config);
 		if (status != 0)
-			throw uhd::runtime_error("FakeUSRP::setupStream() failed: ");
+			throw uhd::runtime_error("OpenUSRP::setupStream() failed: ");
 		stream->streamID.push_back(streamID);
 		stream->elemMTU = _conn->GetStreamSize(streamID);
 	}
@@ -175,7 +175,7 @@ int limesdr_impl::activateStream(IConnectionStream* stream, const int flags, con
 	const auto &streamID = icstream->streamID;
 
 	if (_conn->GetHardwareTimestampRate() == 0.0)
-		throw uhd::runtime_error("FakeUSRP::activateStream() - the sample rate has not been configured!");
+		throw uhd::runtime_error("OpenUSRP::activateStream() - the sample rate has not been configured!");
 
 	//stream requests used with rx
 	icstream->flags = flags;
@@ -814,10 +814,10 @@ static double calculateClockRate(
 		return bestClockRate;
 
 	UHD_MSG(error) << boost::format(
-		"FakeUSRP::setSampleRate(Rx %g MHz, Tx %g MHz) Failed -- no common clock rate.\n"
+		"OpenUSRP::setSampleRate(Rx %g MHz, Tx %g MHz) Failed -- no common clock rate.\n"
 	) % (rateRx / 1e6) % (rateTx / 1e6) << std::endl;
 
-	throw uhd::runtime_error("FakeUSRP::setSampleRate() -- no common clock rate");
+	throw uhd::runtime_error("OpenUSRP::setSampleRate() -- no common clock rate");
 }
 
 
@@ -848,14 +848,14 @@ void limesdr_impl::setSampleRate(const uhd::direction_t direction, const size_t 
 	const double factor = dspRate / rate;
 	int intFactor = 1 << int((std::log(factor) / std::log(2.0)) + 0.5);
 
-	if (intFactor < 2) throw uhd::runtime_error(str(boost::format("FakeUSRP::setSampleRate(%g) -- rate too high") % (rate)));
-	if (intFactor > 32) throw uhd::runtime_error(str(boost::format("FakeUSRP::setSampleRate(%g) -- rate too low") % (rate)));
+	if (intFactor < 2) throw uhd::runtime_error(str(boost::format("OpenUSRP::setSampleRate(%g) -- rate too high") % (rate)));
+	if (intFactor > 32) throw uhd::runtime_error(str(boost::format("OpenUSRP::setSampleRate(%g) -- rate too low") % (rate)));
 
 
 
 	if (std::abs(factor - intFactor) > 0.01)
 		UHD_MSG(warning) << boost::format(
-			"FakeUSRP::setSampleRate(): not a power of two factor.\n"
+			"OpenUSRP::setSampleRate(): not a power of two factor.\n"
 			"TSP Rate = %g MHZ, Requested rate = %g MHz.\n"
 		) % (dspRate / 1e6) % (rate / 1e6) << std::endl;
 
@@ -902,7 +902,7 @@ double limesdr_impl::getFrequency(const uhd::direction_t direction, const size_t
 		return rfic->GetNCOFrequency(lmsDir, 0) * sign;
 	}
 
-	throw uhd::runtime_error("FakeUSRP::getFrequency(" + name + ") unknown name");
+	throw uhd::runtime_error("OpenUSRP::getFrequency(" + name + ") unknown name");
 }
 
 void limesdr_impl::setFrequency(const uhd::direction_t direction, const size_t channel, const std::string &name, const double frequency) {
@@ -960,7 +960,7 @@ void limesdr_impl::setFrequency(const uhd::direction_t direction, const size_t c
 		return;
 	}
 
-	throw uhd::runtime_error("FakeUSRP::setFrequency(" + name + ") unknown name");
+	throw uhd::runtime_error("OpenUSRP::setFrequency(" + name + ") unknown name");
 }
 
 uhd::meta_range_t limesdr_impl::getFrequencyRange(const uhd::direction_t direction, const size_t channel, const std::string &name) {
@@ -1006,7 +1006,7 @@ void limesdr_impl::setAntenna(const uhd::direction_t direction, const size_t cha
 		else if (name == "LNAW") path = LMS7002M::PATH_RFE_LNAW;
 		else if (name == "LB1") path = LMS7002M::PATH_RFE_LB1;
 		else if (name == "LB2") path = LMS7002M::PATH_RFE_LB2;
-		else throw uhd::runtime_error("FakeUSRP::setAntenna(RX, " + name + ") - unknown antenna name");
+		else throw uhd::runtime_error("OpenUSRP::setAntenna(RX, " + name + ") - unknown antenna name");
 
 		rfic->SetPathRFE(path);
 	}
@@ -1017,7 +1017,7 @@ void limesdr_impl::setAntenna(const uhd::direction_t direction, const size_t cha
 		if (name == "NONE") band = 0;
 		else if (name == "BAND1" or name == "TX/RX") band = 1;
 		else if (name == "BAND2") band = 2;
-		else throw uhd::runtime_error("FakeUSRP::setAntenna(TX, " + name + ") - unknown antenna name");
+		else throw uhd::runtime_error("OpenUSRP::setAntenna(TX, " + name + ") - unknown antenna name");
 
 		rfic->SetBandTRF(band);
 	}
@@ -1059,9 +1059,9 @@ void limesdr_impl::setBandwidth(const uhd::direction_t direction, const size_t c
 		if (rfic->TuneRxFilterWithCaching(bw) != 0)
 		{
 			UHD_MSG(error) << boost::format(
-				"FakeUSRP::setBandwidth(Rx, %d, %g MHz) Failed .\n"
+				"OpenUSRP::setBandwidth(Rx, %d, %g MHz) Failed .\n"
 			) % (int(channel)) % (bw / 1e6) << std::endl;
-			throw uhd::runtime_error("FakeUSRP::setRXBandwidth");
+			throw uhd::runtime_error("OpenUSRP::setRXBandwidth");
 		}
 	}
 
@@ -1070,9 +1070,9 @@ void limesdr_impl::setBandwidth(const uhd::direction_t direction, const size_t c
 		if (rfic->TuneTxFilterWithCaching(bw) != 0)
 		{
 			UHD_MSG(error) << boost::format(
-				"FakeUSRP::setBandwidth(Tx, %d, %g MHz) Failed .\n"
+				"OpenUSRP::setBandwidth(Tx, %d, %g MHz) Failed .\n"
 			) % (int(channel)) % (bw / 1e6) << std::endl;
-			throw uhd::runtime_error("FakeUSRP::setTXBandwidth)");
+			throw uhd::runtime_error("OpenUSRP::setTXBandwidth)");
 		}
 	}
 
@@ -1123,7 +1123,7 @@ LMS7002M * limesdr_impl::getRFIC(const size_t channel) const {
 
 	if (_rfics.size() <= channel / 2)
 	{
-		throw std::out_of_range("FakeUSRP::getRFIC(" + std::to_string(channel) + ") out of range");
+		throw std::out_of_range("OpenUSRP::getRFIC(" + std::to_string(channel) + ") out of range");
 	}
 	auto rfic = _rfics.at(channel / 2);
 	rfic->SetActiveChannel(((channel % 2) == 0) ? LMS7002M::ChA : LMS7002M::ChB);
@@ -1216,7 +1216,7 @@ double limesdr_impl::getGain(const uhd::direction_t direction, const size_t chan
 		return rfic->GetTRFLoopbackPAD_dB();
 	}
 
-	else throw uhd::runtime_error("FakeUSRP::getGain(" + name + ") - unknown gain name");
+	else throw uhd::runtime_error("OpenUSRP::getGain(" + name + ") - unknown gain name");
 
 }
 

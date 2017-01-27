@@ -37,7 +37,7 @@ set(CMAKE_CXX_STANDARD 11)
 find_package(LimeSuite REQUIRED)
 
 if (NOT LIMESUITE_FOUND)
-  message(WARNING "LimeSuite not found -- required for FakeUSRP support")
+  message(WARNING "LimeSuite not found -- required for OpenUSRP support")
 endif()
 
 message(STATUS "LimeSuite include directories: ${LIMESUITE_INCLUDE_DIRS}")
@@ -82,7 +82,7 @@ else()
 #UHD MODULE mode
 
 cmake_minimum_required(VERSION 3.1.3)
-project(FakeUSRP CXX C)
+project(OpenUSRP CXX C)
 enable_testing()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
@@ -98,7 +98,7 @@ set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING "")
 find_package(UHD REQUIRED)
 
 if (NOT UHD_FOUND)
-    message(WARNING "UHD not found -- required for FakeUSRP support")
+    message(WARNING "UHD not found -- required for OpenUSRP support")
 endif()
 
 if (NOT UHD_ROOT)
@@ -142,7 +142,7 @@ endif()
 find_package(LimeSuite REQUIRED)
 
 if (NOT LIMESUITE_FOUND)
-  message(WARNING "LimeSuite not found -- required for FakeUSRP support")
+  message(WARNING "LimeSuite not found -- required for OpenUSRP support")
 endif()
 
 INCLUDE_DIRECTORIES(${LIMESUITE_INCLUDE_DIRS})
@@ -178,7 +178,7 @@ set(Boost_ADDITIONAL_VERSIONS
 find_package(Boost COMPONENTS ${BOOST_REQUIRED_COMPONENTS})
 
 if(NOT Boost_FOUND)
-    message(WARNING "Boost not found -- required for FakeUSRP support")
+    message(WARNING "Boost not found -- required for OpenUSRP support")
     return()
 endif()
 
@@ -193,7 +193,7 @@ message(STATUS "Boost libraries: ${Boost_LIBRARIES}")
 
 
 ########################################################################
-# Build a UHD module to support FakeUSRP
+# Build a UHD module to support OpenUSRP
 ########################################################################
 # Targets
 add_library(FakeUSPR SHARED limesdr_impl.cpp limesdr_io_impl.cpp)

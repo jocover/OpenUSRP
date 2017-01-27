@@ -1,13 +1,13 @@
-# FakeUSRP
+# OpenUSRP
 
-FakeUSRP can using LimeSDR to simulate USRP B210 Device
+OpenUSRP can using LimeSDR to simulate USRP B210 Device
 
 Build Status
 ------------
 
-Travis:[![Travis Build Status](https://travis-ci.org/jocover/FakeUSRP.svg?branch=master)](https://travis-ci.org/jocover/FakeUSRP)
+Travis:[![Travis Build Status](https://travis-ci.org/jocover/OpenUSRP.svg?branch=master)](https://travis-ci.org/jocover/OpenUSRP)
 
-AppVeyor: [![Build status](https://ci.appveyor.com/api/projects/status/8ey0pyrf8l4kyh8l?svg=true)](https://ci.appveyor.com/project/jocover/fakeusrp)
+AppVeyor: [![Build status](https://ci.appveyor.com/api/projects/status/8ey0pyrf8l4kyh8l?svg=true)](https://ci.appveyor.com/project/jocover/OpenUSRP)
 
 Dependencies
 ------------
@@ -25,11 +25,11 @@ LIBUHD mode
 ```sh
 git clone https://github.com/EttusResearch/uhd.git
 cd uhd/host/lib/usrp
-git clone https://github.com/jocover/FakeUSRP.git
+git clone https://github.com/jocover/OpenUSRP.git
 ```
-add line INCLUDE_SUBDIRECTORY(FakeUSRP) to uhd/host/lib/usrp/CMakeLists.txt file
+add line INCLUDE_SUBDIRECTORY(OpenUSRP) to uhd/host/lib/usrp/CMakeLists.txt file
 ```sh
-echo "INCLUDE_SUBDIRECTORY(FakeUSRP)">>CMakeLists.txt
+echo "INCLUDE_SUBDIRECTORY(OpenUSRP)">>CMakeLists.txt
 
 ```
 Rebuild UHD driver
@@ -38,7 +38,7 @@ Rebuild UHD driver
 ----------
 UHD MODULE mode
 ```sh
-git clone https://github.com/jocover/FakeUSRP.git
+git clone https://github.com/jocover/OpenUSRP.git
 mkdir build && cd build
 cmake ..
 make -j4
@@ -47,14 +47,14 @@ make install
 
 Windows Binarie
 ---------
-x86 version:[FakeUSRP_x86.zip][5]
+x86 version:[OpenUSRP_x86.zip][5]
 
-x64 version:[FakeUSRP_x64.zip][6]
+x64 version:[OpenUSRP_x64.zip][6]
 
 
   [1]: https://github.com/myriadrf/LimeSuite.git
   [2]: http://www.boost.org/users/download/
   [3]: https://github.com/EttusResearch/uhd.git
   [4]: http://files.ettus.com/manual/page_build_guide.html
-  [5]: https://www.jiangwei.org/download/fakeusrp_x86.zip
-  [6]: https://www.jiangwei.org/download/fakeusrp_x64.zip
+  [5]: https://www.jiangwei.org/download/OpenUSRP_x86.zip
+  [6]: https://www.jiangwei.org/download/OpenUSRP_x64.zip

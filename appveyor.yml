@@ -1,17 +1,17 @@
 version: '{build}'
 environment:
-  FX3_SDK_PATH: C:\projects\deps\FakeUSRP_deps\FX3SDK
+  FX3_SDK_PATH: C:\projects\deps\OpenUSRP_deps\FX3SDK
   CONFIGURATION: RelWithDebInfo
-  LIBUSB_INCLUDE_PATH: C:\projects\deps\FakeUSRP_deps\libusb\include
+  LIBUSB_INCLUDE_PATH: C:\projects\deps\OpenUSRP_deps\libusb\include
   BOOST_ROOT: C:\Libraries\boost_1_62_0
-  LIMESUITE_INCLUDE_PATH: C:\projects\deps\FakeUSRP_deps\LimeSuite\include
+  LIMESUITE_INCLUDE_PATH: C:\projects\deps\OpenUSRP_deps\LimeSuite\include
   LIMESUITE_LIB: C:/projects/deps/LimeSuite/temp/src/%CONFIGURATION%/LimeSuite.lib
   matrix:
   - CMAKE_GENERATOR: Visual Studio 14 2015
-    LIBUSB_LIB: C:\projects\deps\FakeUSRP_deps\libusb\MS32\libusb-1.0.lib
+    LIBUSB_LIB: C:\projects\deps\OpenUSRP_deps\libusb\MS32\libusb-1.0.lib
     BOOST_LIBRARYDIR: C:\Libraries\boost_1_62_0\lib32-msvc-14.0
   - CMAKE_GENERATOR: Visual Studio 14 2015 Win64
-    LIBUSB_LIB: C:\projects\deps\FakeUSRP_deps\libusb\MS64\libusb-1.0.lib
+    LIBUSB_LIB: C:\projects\deps\OpenUSRP_deps\libusb\MS64\libusb-1.0.lib
     BOOST_LIBRARYDIR: C:\Libraries\boost_1_62_0\lib64-msvc-14.0
 install:
 - cmd: >-
@@ -19,9 +19,9 @@ install:
 
     cd C:\projects\deps
 
-    appveyor DownloadFile https://www.jiangwei.org/download/FakeUSRP_deps.zip FakeUSRP_deps.zip
+    appveyor DownloadFile https://www.jiangwei.org/download/OpenUSRP_deps.zip OpenUSRP_deps.zip
 
-    7z x FakeUSRP_deps.zip -oC:\projects\deps\FakeUSRP_deps > nul
+    7z x OpenUSRP_deps.zip -oC:\projects\deps\OpenUSRP_deps > nul
 
 
     cd C:\projects\deps\
@@ -48,9 +48,9 @@ build_script:
 
     cd uhd\host\lib\usrp
 
-    git clone https://github.com/jocover/FakeUSRP.git
+    git clone https://github.com/jocover/OpenUSRP.git
 
-    echo INCLUDE_SUBDIRECTORY(FakeUSRP)>>CMakeLists.txt
+    echo INCLUDE_SUBDIRECTORY(OpenUSRP)>>CMakeLists.txt
 
     cd ..\..\
 

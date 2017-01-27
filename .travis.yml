@@ -1,5 +1,5 @@
 ########################################################################
-## Travis CI config for FakeUSRP
+## Travis CI config for OpenUSRP
 ##
 ## * not all components will be configured
 ## * the matrix builds Release and Debug
@@ -50,8 +50,8 @@ install:
   - git clone --depth=1 https://github.com/EttusResearch/uhd.git
   - pushd uhd/host
   - pushd lib/usrp
-  - git clone https://github.com/jocover/FakeUSRP.git
-  - echo "INCLUDE_SUBDIRECTORY(FakeUSRP)">>CMakeLists.txt
+  - git clone https://github.com/jocover/OpenUSRP.git
+  - echo "INCLUDE_SUBDIRECTORY(OpenUSRP)">>CMakeLists.txt
   - popd
   - mkdir build && cd build
   - cmake ../ -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
