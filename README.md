@@ -5,9 +5,9 @@ OpenUSRP can using LimeSDR to simulate USRP B210 Device
 Build Status
 ------------
 
-Travis:[![Travis Build Status](https://travis-ci.org/jocover/OpenUSRP.svg?branch=master)](https://travis-ci.org/jocover/OpenUSRP)
+Travis: [![Travis Build Status](https://travis-ci.org/jocover/OpenUSRP.svg?branch=master)](https://travis-ci.org/jocover/OpenUSRP)
 
-AppVeyor: [![Build status](https://ci.appveyor.com/api/projects/status/8ey0pyrf8l4kyh8l?svg=true)](https://ci.appveyor.com/project/jocover/OpenUSRP)
+AppVeyor: [![Build status](https://ci.appveyor.com/api/projects/status/a0h6dwl3wxngeun0?svg=true)](https://ci.appveyor.com/project/jocover/OpenUSRP)
 
 Dependencies
 ------------
