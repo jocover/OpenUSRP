@@ -267,6 +267,9 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 
 		setup_radio(channel);
 	}
+
+	for (auto rfic : _rfics) rfic->EnableValuesCache((not device_addr.has_key("ignore-cal-file")));
+
 	double defaultClockRate = DEFAULT_CLOCK_RATE;
 
 	this->setMasterClockRate(defaultClockRate);
