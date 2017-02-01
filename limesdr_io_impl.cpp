@@ -1037,7 +1037,7 @@ void limesdr_impl::setBandwidth(const uhd::direction_t direction, const size_t c
 
 	if (bw == 0.0) return; //special ignore value
 
-	if (bw<1000000. or bw >60000000.0) return;
+	if (bw<1000000.0 or bw >60000000.0) return;
 
 	boost::unique_lock<boost::recursive_mutex> lock(_accessMutex);
 
@@ -1053,10 +1053,9 @@ void limesdr_impl::setBandwidth(const uhd::direction_t direction, const size_t c
 	{
 		if (rfic->TuneRxFilterWithCaching(bw) != 0)
 		{
-			UHD_MSG(error) << boost::format(
+			UHD_MSG(warning) << boost::format(
 				"OpenUSRP::setBandwidth(Rx, %d, %g MHz) Failed .\n"
 			) % (int(channel)) % (bw / 1e6) << std::endl;
-			throw uhd::runtime_error("OpenUSRP::setRXBandwidth");
 		}
 	}
 
@@ -1064,10 +1063,9 @@ void limesdr_impl::setBandwidth(const uhd::direction_t direction, const size_t c
 	{
 		if (rfic->TuneTxFilterWithCaching(bw) != 0)
 		{
-			UHD_MSG(error) << boost::format(
+			UHD_MSG(warning) << boost::format(
 				"OpenUSRP::setBandwidth(Tx, %d, %g MHz) Failed .\n"
 			) % (int(channel)) % (bw / 1e6) << std::endl;
-			throw uhd::runtime_error("OpenUSRP::setTXBandwidth)");
 		}
 	}
 
