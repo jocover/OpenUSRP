@@ -1129,11 +1129,11 @@ uhd::meta_range_t limesdr_impl::getBandwidthRange(const uhd::direction_t directi
 
 	if (direction == RX_DIRECTION)
 	{
-		bws.push_back(uhd::range_t(1e6, 60e6));
+		bws.push_back(uhd::range_t(1e6, 60e6, 1));
 	}
 	if (direction == TX_DIRECTION)
 	{
-		bws.push_back(uhd::range_t(0.8e6, 60e6));
+		bws.push_back(uhd::range_t(0.8e6, 60e6, 1));
 	}
 
 	return bws;
