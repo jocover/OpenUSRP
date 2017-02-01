@@ -214,9 +214,15 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 	////////////////////////////////////////////////////////////////////
 
 
-	std::vector<size_t> default_map(2, 0); default_map[1] = 1; // Set this to A->0 B->1 even if there's only A
-	_tree->create<std::vector<size_t> >(mb_path / "rx_chan_dsp_mapping").set(default_map);
-	_tree->create<std::vector<size_t> >(mb_path / "tx_chan_dsp_mapping").set(default_map);
+	_rx_chan_map.resize(2, 0);
+	_tree->create<std::vector<size_t> >(mb_path / "rx_chan_dsp_mapping")
+		.publish(boost::bind(&limesdr_impl::get_chan_dsp_mapping, this, RX_DIRECTION))
+		.subscribe(boost::bind(&limesdr_impl::set_chan_dsp_mapping, this, RX_DIRECTION, _1));
+
+	_tx_chan_map.resize(2, 0);
+	_tree->create<std::vector<size_t> >(mb_path / "tx_chan_dsp_mapping")
+		.publish(boost::bind(&limesdr_impl::get_chan_dsp_mapping, this, TX_DIRECTION))
+		.subscribe(boost::bind(&limesdr_impl::set_chan_dsp_mapping, this, TX_DIRECTION, _1));
 
 	_tree->create<uhd::usrp::subdev_spec_t>(mb_path / "rx_subdev_spec")
 		.publish(boost::bind(&limesdr_impl::get_frontend_mapping, this, RX_DIRECTION))
@@ -279,8 +285,8 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 	{
 		this->setFrequency(RX_DIRECTION, channel, "BB", 0.0);
 		this->setFrequency(TX_DIRECTION, channel, "BB", 0.0);
-		this->setAntenna(RX_DIRECTION, channel, "LNAL");
-		this->setAntenna(TX_DIRECTION, channel, "BAND1");
+		this->setAntenna(RX_DIRECTION, channel, "RX2");
+		this->setAntenna(TX_DIRECTION, channel, "TX/RX");
 		this->setGain(RX_DIRECTION, channel, "PGA", 0);
 		this->setGain(RX_DIRECTION, channel, "LNA", 0);
 		this->setGain(RX_DIRECTION, channel, "TIA", 0);
@@ -345,7 +351,7 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 
 	subdev_spec_t spec;
 	spec.push_back(subdev_spec_pair_t("A", "A"));
-	spec.push_back(subdev_spec_pair_t("A", "B"));
+	spec.push_back(subdev_spec_pair_t("A", "A"));
 	_tree->access<subdev_spec_t>(mb_path / "rx_subdev_spec").set(spec);
 	_tree->access<subdev_spec_t>(mb_path / "tx_subdev_spec").set(spec);
 

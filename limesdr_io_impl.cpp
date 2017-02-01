@@ -505,14 +505,14 @@ public:
 				_activated = true;
 			}
 
-		}		
+		}
 		else {
 			if (_activated) {
 				ret = _device->deactivateStream(_stream, flags, timeNs);
 				_activated = false;
 			}
-			
-		} 
+
+		}
 		if (ret != 0) throw uhd::runtime_error(str(boost::format("LimeRxStream::issue_stream_cmd() = %d") % ret));
 
 
@@ -1000,12 +1000,9 @@ void limesdr_impl::setAntenna(const uhd::direction_t direction, const size_t cha
 	if (direction == RX_DIRECTION)
 	{
 		LMS7002M::PathRFE path = LMS7002M::PATH_RFE_NONE;
-		if (name == "NONE") path = LMS7002M::PATH_RFE_NONE;
-		else if (name == "LNAH" or name == "TX/RX") path = LMS7002M::PATH_RFE_LNAH;
-		else if (name == "LNAL" or name == "RX2") path = LMS7002M::PATH_RFE_LNAL;
-		else if (name == "LNAW") path = LMS7002M::PATH_RFE_LNAW;
-		else if (name == "LB1") path = LMS7002M::PATH_RFE_LB1;
-		else if (name == "LB2") path = LMS7002M::PATH_RFE_LB2;
+
+		if (name == "TX/RX")  path = (_rx_chan_map[channel] == 0) ? LMS7002M::PATH_RFE_LNAL : LMS7002M::PATH_RFE_LNAH;
+		else if (name == "RX2") path = (_rx_chan_map[channel] == 0) ? LMS7002M::PATH_RFE_LNAL : LMS7002M::PATH_RFE_LNAH;
 		else throw uhd::runtime_error("OpenUSRP::setAntenna(RX, " + name + ") - unknown antenna name");
 
 		rfic->SetPathRFE(path);
@@ -1014,9 +1011,7 @@ void limesdr_impl::setAntenna(const uhd::direction_t direction, const size_t cha
 	if (direction == TX_DIRECTION)
 	{
 		int band = 0;
-		if (name == "NONE") band = 0;
-		else if (name == "BAND1" or name == "TX/RX") band = 1;
-		else if (name == "BAND2") band = 2;
+		if (name == "TX/RX") band = (_tx_chan_map[channel] == 0) ? LMS7002M::PATH_RFE_LB1 : LMS7002M::PATH_RFE_LB2;
 		else throw uhd::runtime_error("OpenUSRP::setAntenna(TX, " + name + ") - unknown antenna name");
 
 		rfic->SetBandTRF(band);
@@ -1356,7 +1351,7 @@ uhd::sensor_value_t limesdr_impl::get_ref_locked(void)
 
 uhd::sensor_value_t limesdr_impl::get_lo_locked(const uhd::direction_t dir, const size_t channel) {
 
-	return sensor_value_t("LO", false, "locked", "unlocked");
+	return sensor_value_t("LO", true, "locked", "unlocked");
 
 }
 
@@ -1364,7 +1359,16 @@ uhd::usrp::subdev_spec_t  limesdr_impl::get_frontend_mapping(const uhd::directio
 
 	uhd::usrp::subdev_spec_t spec;
 
-	spec.push_back(subdev_spec_pair_t("A", "A"));
+	const std::string dirName((dir == RX_DIRECTION) ? "rx" : "tx");
+	std::vector<size_t> chan_to_dsp_map = _tree->access<std::vector<size_t> >("/mboards/0" / (dirName + "_chan_dsp_mapping")).get();
+	subdev_spec_pair_t chan;
+	for (size_t i = 0; i < chan_to_dsp_map.size(); i++) {
+
+		chan.db_name = "A";
+		chan.sd_name = (chan_to_dsp_map[i] == 0) ? "A" : "B";
+		spec.push_back(chan);
+	}
+
 	return spec;
 }
 
@@ -1448,5 +1452,36 @@ void limesdr_impl::setFilter(const uhd::direction_t dir, const size_t channel, c
 void limesdr_impl::setAutoTickRate(const bool enable) {
 
 	_autoTickRate = enable;
+
+}
+
+std::vector<size_t>  limesdr_impl::get_chan_dsp_mapping(const uhd::direction_t dir) {
+
+	if (dir == RX_DIRECTION) {
+		return _rx_chan_map;
+	}
+	return _tx_chan_map;
+
+}
+
+void limesdr_impl::set_chan_dsp_mapping(const uhd::direction_t dir, const std::vector<size_t> & map) {
+
+	if (map.size() > 2)
+		UHD_MSG(error) << "LimeSDR only 2 channels";
+
+	if (dir == RX_DIRECTION) {
+		for (size_t i = 0; i < map.size(); i++) {
+			_rx_chan_map[i] = map[i];
+		}
+
+	}
+
+	if (dir == TX_DIRECTION) {
+		for (size_t i = 0; i < map.size(); i++) {
+			_tx_chan_map[i] = map[i];
+		}
+
+	}
+
 
 }
