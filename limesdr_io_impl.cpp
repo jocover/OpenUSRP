@@ -897,8 +897,19 @@ double limesdr_impl::getFrequency(const uhd::direction_t direction, const size_t
 
 	if (name == "BB")
 	{
-		int pos = (rfic->Get_SPI_Reg_bits(LMS7_MASK, true) == 0) ? 0 : 1;
-		int sign = rfic->Get_SPI_Reg_bits(lmsDir == LMS7002M::Tx ? LMS7param(CMIX_SC_TXTSP) : LMS7param(CMIX_SC_RXTSP)) == pos ? 1 : -1;
+		int sign = 0;
+		int pos = 0, neg = 1;
+
+		if (direction == TX_DIRECTION) {
+
+			sign = (rfic->Get_SPI_Reg_bits(LMS7param(CMIX_SC_TXTSP)) == pos) ? 1 : -1;
+		}
+		else
+		{
+			if (rfic->Get_SPI_Reg_bits(LMS7_MASK, true) != 0) std::swap(pos, neg);
+			sign = (rfic->Get_SPI_Reg_bits(LMS7param(CMIX_SC_RXTSP)) == pos) ? 1 : -1;
+		}
+
 		return rfic->GetNCOFrequency(lmsDir, 0) * sign;
 	}
 
@@ -938,14 +949,16 @@ void limesdr_impl::setFrequency(const uhd::direction_t direction, const size_t c
 
 	if (name == "BB")
 	{
-		int pos = (rfic->Get_SPI_Reg_bits(LMS7_MASK, true) == 0) ? 0 : 1;
-		int neg = pos ^ 0x1;
-		if (direction == TX_DIRECTION) {
+		int pos = 0, neg = 1;
 
+		if (direction == TX_DIRECTION) {
+			
 			rfic->Modify_SPI_Reg_bits(LMS7param(CMIX_BYP_TXTSP), (frequency == 0) ? 1 : 0);
 			rfic->Modify_SPI_Reg_bits(LMS7param(CMIX_SC_TXTSP), (frequency < 0) ? neg : pos);
 		}
 		else {
+
+			if (rfic->Get_SPI_Reg_bits(LMS7_MASK, true) != 0) std::swap(pos, neg);
 			rfic->Modify_SPI_Reg_bits(LMS7param(CMIX_BYP_RXTSP), (frequency == 0) ? 1 : 0);
 			rfic->Modify_SPI_Reg_bits(LMS7param(CMIX_SC_RXTSP), (frequency < 0) ? neg : pos);
 
@@ -1129,7 +1142,7 @@ uhd::meta_range_t limesdr_impl::getBandwidthRange(const uhd::direction_t directi
 
 	if (direction == RX_DIRECTION)
 	{
-		bws.push_back(uhd::range_t(1e6, 60e6, 1));
+		bws.push_back(uhd::range_t(1e6, 60e6,1));
 	}
 	if (direction == TX_DIRECTION)
 	{
