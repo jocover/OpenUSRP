@@ -442,7 +442,7 @@ void limesdr_impl::setup_radio(const size_t dspno) {
 			_tree->create<uhd::sensor_value_t>(rf_fe_path / "sensors/rssi");
 		}
 
-		_tree->create<meta_range_t>(rf_fe_path / "gains" / "PGA" / "range").publish(boost::bind(&limesdr_impl::getGainRange, this, dir, dspno, "PGA"));
+		_tree->create<meta_range_t>(rf_fe_path / "gains" / "PGA" / "range").publish(boost::bind(&limesdr_impl::getGainRange, this, dir, dspno, "Normal"));
 		_tree->create<double>(rf_fe_path / "gains" / "PGA" / "value")
 			.publish(boost::bind(&limesdr_impl::getGain, this, dir, dspno, "Normal"))
 			.subscribe(boost::bind(&limesdr_impl::setGain, this, dir, dspno, "Normal", _1));

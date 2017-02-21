@@ -42,9 +42,14 @@ git clone https://github.com/jocover/OpenUSRP.git
 mkdir build && cd build
 cmake ..
 make -j4
-make install
+sudo make install
+sudo ldconfig
 ```
 
+add environment variable to .bashrc
+```
+echo 'export UHD_MODULE_PATH=/usr/lib/uhd/modules' >> ~/.bashrc 
+```
 Windows Binarie
 ---------
 x86 version:[OpenUSRP_x86.zip][5]
