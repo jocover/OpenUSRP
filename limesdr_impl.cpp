@@ -90,10 +90,6 @@ static device_addrs_t limesdr_find(const device_addr_t &hint) {
 
 	if (hint.has_key("type") and (hint["type"] != "b200")) return limesdr_addrs;
 
-	BOOST_FOREACH(device_addr_t hint_i, separate_device_addr(hint)) {
-		if (hint_i.has_key("addr") || hint_i.has_key("resource")) return limesdr_addrs;
-	}
-
 	for (const auto &handle : lime::ConnectionRegistry::findConnections(argsToHandle(hint)))
 	{
 		limesdr_addrs.push_back(handleToArgs(handle));
