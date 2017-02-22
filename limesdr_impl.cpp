@@ -210,22 +210,19 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 	////////////////////////////////////////////////////////////////////
 
 
-	_rx_chan_map.resize(2, 0);
-	_tree->create<std::vector<size_t> >(mb_path / "rx_chan_dsp_mapping")
-		.publish(boost::bind(&limesdr_impl::get_chan_dsp_mapping, this, RX_DIRECTION))
-		.subscribe(boost::bind(&limesdr_impl::set_chan_dsp_mapping, this, RX_DIRECTION, _1));
+	std::vector<size_t> default_map(2, 0); default_map[1] = 1;
+	_tree->create<std::vector<size_t> >(mb_path / "rx_chan_dsp_mapping").set(default_map);
 
-	_tx_chan_map.resize(2, 0);
-	_tree->create<std::vector<size_t> >(mb_path / "tx_chan_dsp_mapping")
-		.publish(boost::bind(&limesdr_impl::get_chan_dsp_mapping, this, TX_DIRECTION))
-		.subscribe(boost::bind(&limesdr_impl::set_chan_dsp_mapping, this, TX_DIRECTION, _1));
+	_tree->create<std::vector<size_t> >(mb_path / "tx_chan_dsp_mapping").set(default_map);
 
+	_rx_frontend_map.resize(2, 0);
+	
 	_tree->create<uhd::usrp::subdev_spec_t>(mb_path / "rx_subdev_spec")
 		.publish(boost::bind(&limesdr_impl::get_frontend_mapping, this, RX_DIRECTION))
 		.set(subdev_spec_t())
 		.subscribe(boost::bind(&limesdr_impl::set_frontend_mapping, this, RX_DIRECTION, _1));
 
-
+	_tx_frontend_map.resize(2, 0);
 	_tree->create<uhd::usrp::subdev_spec_t>(mb_path / "tx_subdev_spec")
 		.publish(boost::bind(&limesdr_impl::get_frontend_mapping, this, TX_DIRECTION))
 		.set(subdev_spec_t())

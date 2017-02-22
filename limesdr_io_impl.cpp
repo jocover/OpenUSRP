@@ -952,7 +952,7 @@ void limesdr_impl::setFrequency(const uhd::direction_t direction, const size_t c
 		int pos = 0, neg = 1;
 
 		if (direction == TX_DIRECTION) {
-			
+
 			rfic->Modify_SPI_Reg_bits(LMS7param(CMIX_BYP_TXTSP), (frequency == 0) ? 1 : 0);
 			rfic->Modify_SPI_Reg_bits(LMS7param(CMIX_SC_TXTSP), (frequency < 0) ? neg : pos);
 		}
@@ -1014,8 +1014,8 @@ void limesdr_impl::setAntenna(const uhd::direction_t direction, const size_t cha
 	{
 		LMS7002M::PathRFE path = LMS7002M::PATH_RFE_NONE;
 
-		if (name == "TX/RX")  path = (_rx_chan_map[channel] == 0) ? LMS7002M::PATH_RFE_LNAL : LMS7002M::PATH_RFE_LNAH;
-		else if (name == "RX2") path = (_rx_chan_map[channel] == 0) ? LMS7002M::PATH_RFE_LNAL : LMS7002M::PATH_RFE_LNAH;
+		if (name == "TX/RX")  path = (_rx_frontend_map[channel] == 0) ? LMS7002M::PATH_RFE_LNAL : LMS7002M::PATH_RFE_LNAH;
+		else if (name == "RX2") path = (_rx_frontend_map[channel] == 0) ? LMS7002M::PATH_RFE_LNAL : LMS7002M::PATH_RFE_LNAH;
 		else throw uhd::runtime_error("OpenUSRP::setAntenna(RX, " + name + ") - unknown antenna name");
 
 		rfic->SetPathRFE(path);
@@ -1024,7 +1024,7 @@ void limesdr_impl::setAntenna(const uhd::direction_t direction, const size_t cha
 	if (direction == TX_DIRECTION)
 	{
 		int band = 0;
-		if (name == "TX/RX") band = (_tx_chan_map[channel] == 0) ? LMS7002M::PATH_RFE_LB1 : LMS7002M::PATH_RFE_LB2;
+		if (name == "TX/RX") band = (_tx_frontend_map[channel] == 0) ? LMS7002M::PATH_RFE_LB1 : LMS7002M::PATH_RFE_LB2;
 		else throw uhd::runtime_error("OpenUSRP::setAntenna(TX, " + name + ") - unknown antenna name");
 
 		rfic->SetBandTRF(band);
@@ -1142,7 +1142,7 @@ uhd::meta_range_t limesdr_impl::getBandwidthRange(const uhd::direction_t directi
 
 	if (direction == RX_DIRECTION)
 	{
-		bws.push_back(uhd::range_t(1e6, 60e6,1));
+		bws.push_back(uhd::range_t(1e6, 60e6, 1));
 	}
 	if (direction == TX_DIRECTION)
 	{
@@ -1371,27 +1371,97 @@ uhd::usrp::subdev_spec_t  limesdr_impl::get_frontend_mapping(const uhd::directio
 	uhd::usrp::subdev_spec_t spec;
 
 	const std::string dirName((dir == RX_DIRECTION) ? "rx" : "tx");
-	std::vector<size_t> chan_to_dsp_map = _tree->access<std::vector<size_t> >("/mboards/0" / (dirName + "_chan_dsp_mapping")).get();
-	subdev_spec_pair_t chan;
-	for (size_t i = 0; i < chan_to_dsp_map.size(); i++) {
 
-		chan.db_name = "A";
-		chan.sd_name = (chan_to_dsp_map[i] == 0) ? "A" : "B";
-		spec.push_back(chan);
+
+
+	if (dir == RX_DIRECTION) {
+
+
+		for (size_t i = 0; i < _rx_frontend_map.size(); i++) {
+			subdev_spec_pair_t chan;
+			chan.db_name = "A";
+			chan.sd_name = (_rx_frontend_map[i] == 0) ? "A" : "B";
+
+			spec.push_back(chan);
+		}
+
 	}
+
+	if (dir == TX_DIRECTION) {
+
+
+		for (size_t i = 0; i < _tx_frontend_map.size(); i++) {
+			subdev_spec_pair_t chan;
+			chan.db_name = "A";
+			chan.sd_name = (_tx_frontend_map[i] == 0) ? "A" : "B";
+
+			spec.push_back(chan);
+		}
+
+	}
+
 
 	return spec;
 }
 
 void limesdr_impl::set_frontend_mapping(const uhd::direction_t dir, const uhd::usrp::subdev_spec_t &spec) {
 
-
-	std::vector<size_t> chan_to_dsp_map(spec.size(), 0);
-	for (size_t i = 0; i < spec.size(); i++) {
-		chan_to_dsp_map[i] = (spec[i].sd_name == "A") ? 0 : 1;
+	if (spec.size() > 2) {
+		std::cout << "LimeSDR only 2 channels";
+		std::runtime_error("LimeSDR only 2 channels");
 	}
-	const std::string dirName((dir == RX_DIRECTION) ? "rx" : "tx");
-	_tree->access<std::vector<size_t> >("/mboards/0" / (dirName + "_chan_dsp_mapping")).set(chan_to_dsp_map);
+
+
+	if (dir == RX_DIRECTION) {
+
+		for (size_t i = 0; i < spec.size(); i++) {
+
+			_rx_frontend_map[i] = (spec[i].sd_name == "A") ? 0 : 1;
+
+			for (size_t i = 0; i < _rx_frontend_map.size(); i++) {
+
+				LMS7002M::PathRFE path = (_rx_frontend_map[i] == 0) ? LMS7002M::PATH_RFE_LNAL : LMS7002M::PATH_RFE_LNAH;
+
+				auto rfic = getRFIC(i);
+
+				rfic->SetPathRFE(path);
+
+
+			}
+
+		}
+
+	}
+
+	if (dir == TX_DIRECTION) {
+
+		for (size_t i = 0; i < spec.size(); i++) {
+
+			_tx_frontend_map[i] = (spec[i].sd_name == "A") ? 0 : 1;
+
+		}
+
+
+		for (size_t i = 0; i < _tx_frontend_map.size(); i++) {
+
+			for (size_t i = 0; i < _tx_frontend_map.size(); i++) {
+
+				LMS7002M::PathRFE path = (_tx_frontend_map[i] == 0) ? LMS7002M::PATH_RFE_LB1 : LMS7002M::PATH_RFE_LB2;
+
+				auto rfic = getRFIC(i);
+
+				rfic->SetBandTRF(path);
+
+			}
+
+
+		}
+
+
+	}
+
+
+
 
 }
 
@@ -1463,36 +1533,5 @@ void limesdr_impl::setFilter(const uhd::direction_t dir, const size_t channel, c
 void limesdr_impl::setAutoTickRate(const bool enable) {
 
 	_autoTickRate = enable;
-
-}
-
-std::vector<size_t>  limesdr_impl::get_chan_dsp_mapping(const uhd::direction_t dir) {
-
-	if (dir == RX_DIRECTION) {
-		return _rx_chan_map;
-	}
-	return _tx_chan_map;
-
-}
-
-void limesdr_impl::set_chan_dsp_mapping(const uhd::direction_t dir, const std::vector<size_t> & map) {
-
-	if (map.size() > 2)
-		std::cout << "LimeSDR only 2 channels";
-
-	if (dir == RX_DIRECTION) {
-		for (size_t i = 0; i < map.size(); i++) {
-			_rx_chan_map[i] = map[i];
-		}
-
-	}
-
-	if (dir == TX_DIRECTION) {
-		for (size_t i = 0; i < map.size(); i++) {
-			_tx_chan_map[i] = map[i];
-		}
-
-	}
-
 
 }

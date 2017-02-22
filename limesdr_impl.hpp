@@ -131,8 +131,8 @@ private:
 	std::map<size_t, boost::weak_ptr<uhd::rx_streamer> > _rx_streamers;
 	std::map<size_t, boost::weak_ptr<uhd::tx_streamer> > _tx_streamers;
 
-	std::vector<size_t> _rx_chan_map;
-	std::vector<size_t> _tx_chan_map;
+	std::vector<size_t> _rx_frontend_map;
+	std::vector<size_t> _tx_frontend_map;
 
 	uhd::usrp::subdev_spec_t  get_frontend_mapping(const uhd::direction_t dir);
 	void set_frontend_mapping(const uhd::direction_t, const uhd::usrp::subdev_spec_t &);
@@ -185,10 +185,6 @@ private:
 	uhd::sensor_value_t get_ref_locked(void);
 
 	uhd::sensor_value_t get_lo_locked(const uhd::direction_t dir, const size_t channel);
-
-	std::vector<size_t> get_chan_dsp_mapping(const uhd::direction_t dir);
-
-	void set_chan_dsp_mapping(const uhd::direction_t dir, const std::vector<size_t> & map);
 
 	void error(void);
 
