@@ -40,7 +40,6 @@
 #include <uhd/usrp/dboard_eeprom.hpp>
 #include <uhd/utils/pimpl.hpp>
 #include <uhd/utils/tasks.hpp>
-#include <uhd/utils/msg.hpp>
 #include <uhd/utils/cast.hpp>
 #include <uhd/utils/static.hpp>
 #include <uhd/utils/paths.hpp>

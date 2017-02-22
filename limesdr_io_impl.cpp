@@ -813,7 +813,7 @@ static double calculateClockRate(
 	if (bestClockRate != 0.0)
 		return bestClockRate;
 
-	UHD_MSG(error) << boost::format(
+	std::cout << boost::format(
 		"OpenUSRP::setSampleRate(Rx %g MHz, Tx %g MHz) Failed -- no common clock rate.\n"
 	) % (rateRx / 1e6) % (rateTx / 1e6) << std::endl;
 
@@ -854,7 +854,7 @@ void limesdr_impl::setSampleRate(const uhd::direction_t direction, const size_t 
 
 
 	if (std::abs(factor - intFactor) > 0.01)
-		UHD_MSG(warning) << boost::format(
+		std::cout << boost::format(
 			"OpenUSRP::setSampleRate(): not a power of two factor.\n"
 			"TSP Rate = %g MHZ, Requested rate = %g MHz.\n"
 		) % (dspRate / 1e6) % (rate / 1e6) << std::endl;
@@ -874,14 +874,14 @@ void limesdr_impl::setSampleRate(const uhd::direction_t direction, const size_t 
 		int(std::log(double(_interps[channel])) / std::log(2.0)) - 1,
 		int(std::log(double(_decims[channel])) / std::log(2.0)) - 1);
 	if (status != 0)
-		UHD_MSG(error) << "SetInterfaceFrequency Failed." << std::endl;
+		std::cout << "SetInterfaceFrequency Failed." << std::endl;
 
 	status = _conn->UpdateExternalDataRate(
 		rfic->GetActiveChannelIndex(),
 		rfic->GetSampleRate(LMS7002M::Tx, rfic->GetActiveChannel()),
 		rfic->GetSampleRate(LMS7002M::Rx, rfic->GetActiveChannel()));
 	if (status != 0)
-		UHD_MSG(error) << "UpdateExternalDataRate Failed." << std::endl;
+		std::cout << "UpdateExternalDataRate Failed." << std::endl;
 }
 
 double limesdr_impl::getFrequency(const uhd::direction_t direction, const size_t channel, const std::string &name) {
@@ -1066,7 +1066,7 @@ void limesdr_impl::setBandwidth(const uhd::direction_t direction, const size_t c
 	{
 		if (rfic->TuneRxFilterWithCaching(bw) != 0)
 		{
-			UHD_MSG(warning) << boost::format(
+			std::cout << boost::format(
 				"OpenUSRP::setBandwidth(Rx, %d, %g MHz) Failed .\n"
 			) % (int(channel)) % (bw / 1e6) << std::endl;
 		}
@@ -1076,7 +1076,7 @@ void limesdr_impl::setBandwidth(const uhd::direction_t direction, const size_t c
 	{
 		if (rfic->TuneTxFilterWithCaching(bw) != 0)
 		{
-			UHD_MSG(warning) << boost::format(
+			std::cout << boost::format(
 				"OpenUSRP::setBandwidth(Tx, %d, %g MHz) Failed .\n"
 			) % (int(channel)) % (bw / 1e6) << std::endl;
 		}
@@ -1478,7 +1478,7 @@ std::vector<size_t>  limesdr_impl::get_chan_dsp_mapping(const uhd::direction_t d
 void limesdr_impl::set_chan_dsp_mapping(const uhd::direction_t dir, const std::vector<size_t> & map) {
 
 	if (map.size() > 2)
-		UHD_MSG(error) << "LimeSDR only 2 channels";
+		std::cout << "LimeSDR only 2 channels";
 
 	if (dir == RX_DIRECTION) {
 		for (size_t i = 0; i < map.size(); i++) {

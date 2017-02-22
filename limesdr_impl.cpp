@@ -76,10 +76,10 @@ protected:
 	{
 		switch (type)
 		{
-		case LOG_INFO: UHD_MSG(status) << text << std::endl; break;
-		case LOG_WARNING: UHD_MSG(warning) << text << std::endl; break;
-		case LOG_ERROR: UHD_MSG(error) << text << std::endl; break;
-		case LOG_DATA: UHD_HEX(text); break;
+		case LOG_INFO: std::cout << text << std::endl; break;
+		case LOG_WARNING: std::cout << text << std::endl; break;
+		case LOG_ERROR: std::cout << text << std::endl; break;
+		case LOG_DATA: std::cout << "0X" <<std::hex << text << std::endl; break;
 		}
 	}
 };
@@ -131,7 +131,7 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 
 
 
-	UHD_MSG(status) << "Using OpenUSRP" << std::endl;
+	std::cout << "Using OpenUSRP" << std::endl;
 
 	_conn = ConnectionRegistry::makeConnection(handle);
 
