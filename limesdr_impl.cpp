@@ -38,7 +38,6 @@ static ConnectionHandle argsToHandle(const device_addr_t &args)
 	if (args.has_key("module"))handle.module = args["module"];
 	if (args.has_key("media"))handle.media = args["media"];
 	if (args.has_key("name"))handle.name = args["name"];
-	if (args.has_key("addr"))handle.addr = args["addr"];
 	if (args.has_key("serial"))handle.serial = args["serial"];
 	if (args.has_key("index"))handle.index = std::stoi(args["index"]);
 
@@ -55,7 +54,6 @@ static device_addr_t handleToArgs(const ConnectionHandle &handle)
 	if (not handle.module.empty()) args["module"] = handle.module;
 	if (not handle.media.empty()) args["media"] = handle.media;
 	if (not handle.name.empty()) args["name"] = handle.name;
-	if (not handle.addr.empty()) args["addr"] = handle.addr;
 	if (not handle.serial.empty()) args["serial"] = handle.serial;
 	if (handle.index != -1) args["index"] = std::to_string(handle.index);
 
@@ -89,6 +87,12 @@ static device_addrs_t limesdr_find(const device_addr_t &hint) {
 	device_addrs_t limesdr_addrs;
 
 	if (hint.has_key("type") and (hint["type"] != "b200")) return limesdr_addrs;
+
+	BOOST_FOREACH(device_addr_t hint_i, separate_device_addr(hint)) {
+
+		if (hint_i.has_key("addr") || hint_i.has_key("resource")) return limesdr_addrs;
+		
+	}
 
 	for (const auto &handle : lime::ConnectionRegistry::findConnections(argsToHandle(hint)))
 	{
