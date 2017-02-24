@@ -273,9 +273,9 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 
 	for (auto rfic : _rfics) rfic->EnableValuesCache((not device_addr.has_key("ignore-cal-file")));
 
-	double defaultClockRate = DEFAULT_CLOCK_RATE;
+	double defaultClockRate = device_addr.cast<double>("master_clock_rate", DEFAULT_CLOCK_RATE);
 
-	this->setMasterClockRate(defaultClockRate);
+	_tree->access<double>(mb_path / "tick_rate").set(defaultClockRate);
 
 
 	for (size_t channel = 0; channel < _rfics.size() * 2; channel++)
