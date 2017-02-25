@@ -836,7 +836,7 @@ void limesdr_impl::setSampleRate(const uhd::direction_t direction, const size_t 
 	{
 		double rxRate = rate, txRate = rate;
 		if (direction != RX_DIRECTION and _fixedRxSampRate[channel]) rxRate = this->getSampleRate(RX_DIRECTION, channel);
-		if (direction != RX_DIRECTION and _fixedTxSampRate[channel]) txRate = this->getSampleRate(TX_DIRECTION, channel);
+		if (direction != TX_DIRECTION and _fixedTxSampRate[channel]) txRate = this->getSampleRate(TX_DIRECTION, channel);
 		clockRate = calculateClockRate(
 			clockRate / rfic->GetReferenceClk_TSP(LMS7002M::Rx),
 			clockRate / rfic->GetReferenceClk_TSP(LMS7002M::Tx),
