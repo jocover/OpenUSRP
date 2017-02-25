@@ -1411,58 +1411,31 @@ void limesdr_impl::set_frontend_mapping(const uhd::direction_t dir, const uhd::u
 		std::runtime_error("LimeSDR only 2 channels");
 	}
 
-
 	if (dir == RX_DIRECTION) {
-
 		for (size_t i = 0; i < spec.size(); i++) {
-
 			_rx_frontend_map[i] = (spec[i].sd_name == "A") ? 0 : 1;
-
 			for (size_t i = 0; i < _rx_frontend_map.size(); i++) {
-
 				LMS7002M::PathRFE path = (_rx_frontend_map[i] == 0) ? LMS7002M::PATH_RFE_LNAL : LMS7002M::PATH_RFE_LNAH;
-
 				auto rfic = getRFIC(i);
-
 				rfic->SetPathRFE(path);
-
-
 			}
-
 		}
-
 	}
 
 	if (dir == TX_DIRECTION) {
 
 		for (size_t i = 0; i < spec.size(); i++) {
-
 			_tx_frontend_map[i] = (spec[i].sd_name == "A") ? 0 : 1;
-
 		}
-
 
 		for (size_t i = 0; i < _tx_frontend_map.size(); i++) {
-
 			for (size_t i = 0; i < _tx_frontend_map.size(); i++) {
-
 				LMS7002M::PathRFE path = (_tx_frontend_map[i] == 0) ? LMS7002M::PATH_RFE_LB1 : LMS7002M::PATH_RFE_LB2;
-
 				auto rfic = getRFIC(i);
-
 				rfic->SetBandTRF(path);
-
 			}
-
-
 		}
-
-
 	}
-
-
-
-
 }
 
 

@@ -126,7 +126,7 @@ UHD_STATIC_BLOCK(register_limesdr_device)
 /***********************************************************************
 * Structors
 **********************************************************************/
-limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::device_addr_t& device_addr) :_conn(nullptr), _moduleName(handle.module) {
+limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::device_addr_t& device_addr) :_conn(nullptr), _moduleName(handle.module), _autoTickRate(false){
 
 
 	_tree = property_tree::make();
