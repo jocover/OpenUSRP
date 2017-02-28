@@ -1405,7 +1405,7 @@ void limesdr_impl::setHardwareTime(const std::string &what, const uhd::time_spec
 	if (what == "NOW")
 	{
 		auto rate = _conn->GetHardwareTimestampRate();
-		auto ticks = timeNsToTicks(time.to_ticks(1e6), rate);
+		auto ticks = timeNsToTicks(time.to_ticks(1e9), rate);
 		_conn->SetHardwareTimestamp(ticks);
 	}
 	else
