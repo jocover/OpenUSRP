@@ -98,7 +98,7 @@ public:
 	uhd::tx_streamer::sptr get_tx_stream(const uhd::stream_args_t &args);
 	bool recv_async_msg(uhd::async_metadata_t &, double);
 
-	IConnectionStream* setupStream(const uhd::direction_t dir, const std::string &format, const std::vector<size_t> &channels, const uhd::stream_args_t &args);
+	IConnectionStream* setupStream(const uhd::direction_t dir,const uhd::stream_args_t &args);
 
 	void closeStream(IConnectionStream* stream);
 

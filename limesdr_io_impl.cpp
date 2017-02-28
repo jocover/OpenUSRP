@@ -68,45 +68,12 @@ long long timeNsToTicks(const long long timeNs, const double rate)
 	return (full*ratell) + llround(frac);
 }
 
-size_t formatToSize(const char *format)
-{
-	size_t size = 0;
-	size_t isComplex = false;
-	char ch = 0;
-	while ((ch = *format++) != '\0')
-	{
-		if (ch == 'C') isComplex = true;
-		if (std::isdigit(ch)) size = (size * 10) + size_t(ch - '0');
-	}
-	if (isComplex) size *= 2;
-	return size / 8; //bits to bytes
-}
+IConnectionStream* limesdr_impl::setupStream(const uhd::direction_t direction, const uhd::stream_args_t &args) {
 
-static IConnectionStream *make_stream(limesdr_impl *d, const uhd::direction_t direction, const uhd::stream_args_t &args) {
-
-	std::vector<size_t> chans = args.channels;
-	if (chans.empty()) chans.push_back(0);
-
-	//the format string
-	std::string hostFormat;
-	BOOST_FOREACH(const char ch, args.cpu_format)
-	{
-		if (ch == 'c') hostFormat = "C" + hostFormat;
-		else if (ch == 'f') hostFormat += "F";
-		else if (ch == 's') hostFormat += "S";
-		else if (std::isdigit(ch)) hostFormat += ch;
-		else throw uhd::runtime_error("OpenUSRP::setupStream(" + args.cpu_format + ") unknown format");
-	}
-
-	return d->setupStream(direction, hostFormat, chans, args);
-
-}
-
-IConnectionStream* limesdr_impl::setupStream(const uhd::direction_t direction, const std::string &format, const std::vector<size_t> &channels, const uhd::stream_args_t &args) {
 	boost::unique_lock<boost::recursive_mutex> lock(_accessMutex);
 	auto stream = new IConnectionStream;
 	stream->direction = direction;
-	stream->elemSize = formatToSize(format.c_str());
+	stream->elemSize = uhd::convert::get_bytes_per_item(args.cpu_format);
 	stream->hasCmd = false;
 
 	StreamConfig config;
@@ -114,15 +81,14 @@ IConnectionStream* limesdr_impl::setupStream(const uhd::direction_t direction, c
 	config.performanceLatency = 0.5;
 
 	//default to channel 0, if none were specified
-	const std::vector<size_t> &channelIDs = channels.empty() ? std::vector<size_t>{0} : channels;
+	const std::vector<size_t> &channelIDs = args.channels.empty() ? std::vector<size_t>{0} : args.channels;
 
 	for (size_t i = 0; i < channelIDs.size(); ++i)
 	{
-		config.channelID = channelIDs[i];
-		if (format == "CF32") config.format = StreamConfig::STREAM_COMPLEX_FLOAT32;
-		else if (format == "CS16") config.format = StreamConfig::STREAM_12_BIT_IN_16;
-		else if (format == "CS12") config.format = StreamConfig::STREAM_12_BIT_COMPRESSED;
-		else throw uhd::runtime_error("OpenUSRP::setupStream(format=" + format + ") unsupported format");
+		config.channelID = (uint8_t)channelIDs[i];
+		if (args.cpu_format == "fc32") config.format = StreamConfig::STREAM_COMPLEX_FLOAT32;
+		else if (args.cpu_format == "sc16") config.format = StreamConfig::STREAM_12_BIT_IN_16;
+		else throw uhd::runtime_error("OpenUSRP::setupStream(format=" + args.cpu_format + ") unsupported format");
 
 		//create the stream
 		size_t streamID(~0);
@@ -133,7 +99,6 @@ IConnectionStream* limesdr_impl::setupStream(const uhd::direction_t direction, c
 		stream->elemMTU = _conn->GetStreamSize(streamID);
 	}
 	return (IConnectionStream *)stream;
-
 
 }
 
@@ -369,9 +334,8 @@ public:
 
 	LimeRxStream(limesdr_impl * d, const uhd::stream_args_t &args) :
 		_device(d),
-		_stream(make_stream(d, RX_DIRECTION, args)),
+		_stream(d->setupStream(RX_DIRECTION, args)),
 		_nchan(std::max<size_t>(1, args.channels.size())),
-		_elemSize(uhd::convert::get_bytes_per_item(args.cpu_format)),
 		_activated(false)
 	{
 		_offsetBuffs.resize(_nchan);
@@ -410,7 +374,7 @@ public:
 			if (one_packet) flags |= SOAPY_SDR_ONE_PACKET;
 			long long timeNs = 0;
 			size_t numElems = (nsamps_per_buff - total);
-			for (size_t i = 0; i < _nchan; i++) _offsetBuffs[i] = ((char *)buffs[i]) + total*_elemSize;
+			for (size_t i = 0; i < _nchan; i++) _offsetBuffs[i] = ((char *)buffs[i]) + total*_stream->elemSize;
 			int ret = _device->readStream(_stream, &(_offsetBuffs[0]), numElems, flags, timeNs, long(timeout*1e6));
 
 			//deal with return error codes
@@ -524,7 +488,6 @@ private:
 	IConnectionStream * _stream;
 	bool _activated;
 	const size_t _nchan;
-	const size_t _elemSize;
 	std::vector<void *> _offsetBuffs;
 
 };
@@ -535,9 +498,8 @@ class LimeTxStream : public uhd::tx_streamer
 public:
 	LimeTxStream(limesdr_impl * d, const uhd::stream_args_t &args) :
 		_device(d),
-		_stream(make_stream(d, TX_DIRECTION, args)),
+		_stream(d->setupStream(TX_DIRECTION, args)),
 		_nchan(std::max<size_t>(1, args.channels.size())),
-		_elemSize(uhd::convert::get_bytes_per_item(args.cpu_format)), \
 		_activated(false)
 	{
 		_offsetBuffs.resize(_nchan);
@@ -587,7 +549,7 @@ public:
 			size_t numElems = (nsamps_per_buff - total);
 			if (md.has_time_spec and total == 0) flags |= SOAPY_SDR_HAS_TIME;
 			if (md.end_of_burst) flags |= SOAPY_SDR_END_BURST;
-			for (size_t i = 0; i < _nchan; i++) _offsetBuffs[i] = ((char *)buffs[i]) + total*_elemSize;
+			for (size_t i = 0; i < _nchan; i++) _offsetBuffs[i] = ((char *)buffs[i]) + total*_stream->elemSize;
 			int ret = _device->writeStream(_stream, &(_offsetBuffs[0]), numElems, flags, timeNs, long(timeout*1e6));
 			if (ret == SOAPY_SDR_TIMEOUT) break;
 			if (ret < 0) throw uhd::runtime_error(str(boost::format("LimeTxStream::send() = %d") % ret));
@@ -654,7 +616,6 @@ private:
 
 	bool _activated;
 	const size_t _nchan;
-	const size_t _elemSize;
 	std::vector<const void *> _offsetBuffs;
 
 };
