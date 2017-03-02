@@ -53,14 +53,9 @@
 #include <boost/foreach.hpp>
 #include <boost/format.hpp>
 #include <boost/thread/mutex.hpp>
-#include <boost/thread/thread.hpp> 
 #include <boost/bind.hpp>
-#include <boost/weak_ptr.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/chrono.hpp>
-#include <boost/chrono/chrono_io.hpp>
 #include <boost/thread/recursive_mutex.hpp>
-#include <boost/date_time/posix_time/posix_time.hpp>
 
 #define TX_GAIN_MAX 89.8
 #define RX_GAIN_MAX 76.0
@@ -112,8 +107,12 @@ public:
 
 	int readStreamStatus(IConnectionStream *stream, size_t &chanMask, int &flags, long long &timeNs, const long timeoutUs);
 
+	
+
 private:
+	
 	lime::IConnection *_conn;
+
 	const std::string _moduleName;
 
 	lime::LMS7002M *getRFIC(const size_t channel) const;

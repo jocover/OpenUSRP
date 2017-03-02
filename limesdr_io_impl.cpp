@@ -33,319 +33,51 @@ using namespace lime;
 #define MIN_SAMP_RATE 1e5
 #define MAX_SAMP_RATE 60e6
 
-#define SOAPY_SDR_END_BURST (1 << 1)
-#define SOAPY_SDR_HAS_TIME (1 << 2)
-#define SOAPY_SDR_END_ABRUPT (1 << 3)
-#define SOAPY_SDR_ONE_PACKET (1 << 4)
-#define SOAPY_SDR_MORE_FRAGMENTS (1 << 5)
-#define SOAPY_SDR_WAIT_TRIGGER (1 << 6)
-
-#define SOAPY_SDR_TIMEOUT (-1)
-#define SOAPY_SDR_STREAM_ERROR (-2)
-#define SOAPY_SDR_CORRUPTION (-3)
-#define SOAPY_SDR_OVERFLOW (-4)
-#define SOAPY_SDR_NOT_SUPPORTED (-5)
-#define SOAPY_SDR_TIME_ERROR (-6)
-#define SOAPY_SDR_UNDERFLOW (-7)
-
-long long ticksToTimeNs(const long long ticks, const double rate)
-{
-	const long long ratell = (long long)(rate);
-	const long long full = (long long)(ticks / ratell);
-	const long long err = ticks - (full*ratell);
-	const double part = full*(rate - ratell);
-	const double frac = ((err - part) * 1000000000) / rate;
-	return (full * 1000000000) + llround(frac);
-}
-
-long long timeNsToTicks(const long long timeNs, const double rate)
-{
-	const long long ratell = (long long)(rate);
-	const long long full = (long long)(timeNs / 1000000000);
-	const long long err = timeNs - (full * 1000000000);
-	const double part = full*(rate - ratell);
-	const double frac = part + ((err*rate) / 1000000000);
-	return (full*ratell) + llround(frac);
-}
-
-IConnectionStream* limesdr_impl::setupStream(const uhd::direction_t direction, const uhd::stream_args_t &args) {
-
-	boost::unique_lock<boost::recursive_mutex> lock(_accessMutex);
-	auto stream = new IConnectionStream;
-	stream->direction = direction;
-	stream->elemSize = uhd::convert::get_bytes_per_item(args.cpu_format);
-	stream->hasCmd = false;
-
-	StreamConfig config;
-	config.isTx = (direction == TX_DIRECTION);
-	config.performanceLatency = 0.5;
-
-	//default to channel 0, if none were specified
-	const std::vector<size_t> &channelIDs = args.channels.empty() ? std::vector<size_t>{0} : args.channels;
-
-	for (size_t i = 0; i < channelIDs.size(); ++i)
-	{
-		config.channelID = (uint8_t)channelIDs[i];
-		if (args.cpu_format == "fc32") config.format = StreamConfig::STREAM_COMPLEX_FLOAT32;
-		else if (args.cpu_format == "sc16") config.format = StreamConfig::STREAM_12_BIT_IN_16;
-		else throw uhd::runtime_error("OpenUSRP::setupStream(format=" + args.cpu_format + ") unsupported format");
-
-		//create the stream
-		size_t streamID(~0);
-		const int status = _conn->SetupStream(streamID, config);
-		if (status != 0)
-			throw uhd::runtime_error("OpenUSRP::setupStream() failed: ");
-		stream->streamID.push_back(streamID);
-		stream->elemMTU = _conn->GetStreamSize(streamID);
-	}
-	return (IConnectionStream *)stream;
-
-}
-
-
-void limesdr_impl::closeStream(IConnectionStream* stream) {
-
-	boost::unique_lock<boost::recursive_mutex> lock(_accessMutex);
-	auto icstream = (IConnectionStream *)stream;
-	const auto &streamID = icstream->streamID;
-
-	for (auto i : streamID)
-		_conn->CloseStream(i);
-
-}
-
-int limesdr_impl::deactivateStream(IConnectionStream* stream, const int flags, const long long timeNs) {
-	boost::unique_lock<boost::recursive_mutex> lock(_accessMutex);
-	auto icstream = (IConnectionStream *)stream;
-	const auto &streamID = icstream->streamID;
-	icstream->hasCmd = false;
-
-	StreamMetadata metadata;
-	metadata.timestamp = timeNsToTicks(timeNs, _conn->GetHardwareTimestampRate());
-	metadata.hasTimestamp = (flags & SOAPY_SDR_HAS_TIME) != 0;
-	metadata.endOfBurst = (flags & SOAPY_SDR_END_BURST) != 0;
-	for (auto i : streamID)
-	{
-		int status = _conn->ControlStream(i, false);
-		if (status != 0)
-			return SOAPY_SDR_STREAM_ERROR;
-	}
-	return 0;
-}
-
-int limesdr_impl::activateStream(IConnectionStream* stream, const int flags, const long long timeNs, const size_t numElems) {
-
-	boost::unique_lock<boost::recursive_mutex> lock(_accessMutex);
-	auto icstream = (IConnectionStream *)stream;
-	const auto &streamID = icstream->streamID;
-
-	if (_conn->GetHardwareTimestampRate() == 0.0)
-		throw uhd::runtime_error("OpenUSRP::activateStream() - the sample rate has not been configured!");
-
-	//stream requests used with rx
-	icstream->flags = flags;
-	icstream->timeNs = timeNs;
-	icstream->numElems = numElems;
-	icstream->hasCmd = true;
-
-	for (auto i : streamID)
-	{
-		int status = _conn->ControlStream(i, true);
-		if (status != 0)
-			return SOAPY_SDR_STREAM_ERROR;
-	}
-	return 0;
-
-
-}
-
-int limesdr_impl::readStream(IConnectionStream* stream, void * const *buffs, size_t numElems, int &flags, long long &timeNs, const long timeoutUs) {
-
-	auto icstream = (IConnectionStream *)stream;
-	const auto &streamID = icstream->streamID;
-
-	const auto exitTime = boost::chrono::high_resolution_clock::now() + boost::chrono::microseconds(timeoutUs);
-
-	//wait for a command from activate stream up to the timeout specified
-	if (not icstream->hasCmd)
-	{
-		while (boost::chrono::high_resolution_clock::now() < exitTime)
-		{
-			boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
-		}
-		return SOAPY_SDR_TIMEOUT;
-	}
-
-	//handle the one packet flag by clipping
-	if ((flags & SOAPY_SDR_ONE_PACKET) != 0)
-	{
-		numElems = std::min(numElems, icstream->elemMTU);
-	}
-
-ReadStreamAgain:
-	StreamMetadata metadata;
-	int status = 0;
-	int bufIndex = 0;
-	for (auto i : streamID)
-	{
-		status = _conn->ReadStream(i, buffs[bufIndex++], numElems, timeoutUs / 1000, metadata);
-		if (status == 0) return SOAPY_SDR_TIMEOUT;
-		if (status < 0) return SOAPY_SDR_STREAM_ERROR;
-	}
-
-	//the command had a time, so we need to compare it to received time
-	if ((icstream->flags & SOAPY_SDR_HAS_TIME) != 0 and metadata.hasTimestamp)
-	{
-		const uint64_t cmdTicks = timeNsToTicks(icstream->timeNs, _conn->GetHardwareTimestampRate());
-
-		//our request time is now late, clear command and return error code
-		if (cmdTicks < metadata.timestamp)
-		{
-			icstream->hasCmd = false;
-			return SOAPY_SDR_TIME_ERROR;
-		}
-
-		//our request time is not in this received buffer, try again
-		if (cmdTicks >= (metadata.timestamp + status))
-		{
-			if (boost::chrono::high_resolution_clock::now() > exitTime) return SOAPY_SDR_TIMEOUT;
-			goto ReadStreamAgain;
-		}
-
-		//otherwise our request is in this buffer, advance memory
-		const size_t numOff = (cmdTicks - metadata.timestamp);
-		metadata.timestamp += numOff;
-		status -= numOff;
-		const size_t elemSize = icstream->elemSize;
-		for (size_t i = 0; i < streamID.size(); i++)
-		{
-			const size_t memStart = size_t(buffs[i]) + (numOff*elemSize);
-			std::memmove(buffs[i], (const void *)memStart, status*elemSize);
-		}
-		icstream->flags &= ~SOAPY_SDR_HAS_TIME; //clear for next read
-	}
-
-	//handle finite burst request commands
-	if (icstream->numElems != 0)
-	{
-		//Clip to within the request size when over,
-		//and reduce the number of elements requested.
-		status = std::min<size_t>(status, icstream->numElems);
-		icstream->numElems -= status;
-
-		//the burst completed, done with the command
-		if (icstream->numElems == 0)
-		{
-			icstream->hasCmd = false;
-			metadata.endOfBurst = true;
-		}
-	}
-
-	//output metadata
-	flags = 0;
-	if (metadata.endOfBurst) flags |= SOAPY_SDR_END_BURST;
-	if (metadata.hasTimestamp) flags |= SOAPY_SDR_HAS_TIME;
-	timeNs = ticksToTimeNs(metadata.timestamp, _conn->GetHardwareTimestampRate());
-
-	//return num read or error code
-	return (status >= 0) ? status : SOAPY_SDR_STREAM_ERROR;
-
-
-}
-
-int limesdr_impl::writeStream(IConnectionStream *stream, const void * const *buffs, const size_t numElems, int &flags, const long long timeNs, const long timeoutUs) {
-
-	auto icstream = (IConnectionStream *)stream;
-	const auto &streamID = icstream->streamID;
-
-	//input metadata
-	StreamMetadata metadata;
-	metadata.timestamp = timeNsToTicks(timeNs, _conn->GetHardwareTimestampRate());
-	metadata.hasTimestamp = (flags & SOAPY_SDR_HAS_TIME) != 0;
-	metadata.endOfBurst = (flags & SOAPY_SDR_END_BURST) != 0;
-
-	int ret = 0;
-	int bufIndex = 0;
-	for (auto i : streamID)
-	{
-		ret = _conn->WriteStream(i, buffs[bufIndex++], numElems, timeoutUs / 1000, metadata);
-		if (ret == 0) return SOAPY_SDR_TIMEOUT;
-		if (ret < 0) return SOAPY_SDR_STREAM_ERROR;
-	}
-
-	//return num written or error code
-	return (ret > 0) ? ret : SOAPY_SDR_STREAM_ERROR;
-
-}
-
-
-int limesdr_impl::readStreamStatus(IConnectionStream*stream, size_t &chanMask, int &flags, long long &timeNs, const long timeoutUs) {
-
-	auto icstream = (IConnectionStream *)stream;
-	const auto &streamID = icstream->streamID;
-
-	StreamMetadata metadata;
-	flags = 0;
-	auto start = boost::chrono::high_resolution_clock::now();
-	while (1)
-	{
-		for (auto i : streamID)
-		{
-			int ret = _conn->ReadStreamStatus(i, timeoutUs / 1000, metadata);
-
-			if (ret != 0)
-			{
-				//handle the default not implemented case and return not supported
-				return SOAPY_SDR_TIMEOUT;
-			}
-		}
-		//stop when event is detected
-		if (metadata.endOfBurst || metadata.lateTimestamp || metadata.packetDropped)
-			break;
-		//check timeout
-		boost::chrono::duration<double> seconds = boost::chrono::high_resolution_clock::now() - start;
-		if (seconds.count() > (double)timeoutUs / 1e6)
-			return SOAPY_SDR_TIMEOUT;
-		//sleep to avoid high CPU load
-		if (timeoutUs >= 2000)
-			boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
-		else
-			boost::this_thread::sleep_for(boost::chrono::microseconds(1 + timeoutUs / 2));
-	}
-
-	timeNs = ticksToTimeNs(metadata.timestamp, _conn->GetHardwareTimestampRate());
-	//output metadata
-	if (metadata.endOfBurst) flags |= SOAPY_SDR_END_BURST;
-	if (metadata.hasTimestamp) flags |= SOAPY_SDR_HAS_TIME;
-
-	if (metadata.lateTimestamp) return SOAPY_SDR_TIME_ERROR;
-	if (metadata.packetDropped) return SOAPY_SDR_OVERFLOW;
-
-	return 0;
-
-
-}
-
-
-
-
 class LimeRxStream : public uhd::rx_streamer {
 public:
 
-	LimeRxStream(limesdr_impl * d, const uhd::stream_args_t &args) :
-		_device(d),
-		_stream(d->setupStream(RX_DIRECTION, args)),
+	LimeRxStream(lime::IConnection * c, const uhd::stream_args_t &args) :
+		_conn(c),
+		_elemSize(uhd::convert::get_bytes_per_item(args.cpu_format)),
 		_nchan(std::max<size_t>(1, args.channels.size())),
 		_activated(false)
 	{
-		_offsetBuffs.resize(_nchan);
+		StreamConfig config;
+		config.isTx = false;
+		config.performanceLatency = 0.5;
+
+		//default to channel 0, if none were specified
+		const std::vector<size_t> &channelIDs = args.channels.empty() ? std::vector<size_t>(1, 0) : args.channels;
+
+		for (size_t i = 0; i < channelIDs.size(); ++i)
+		{
+			config.channelID = (uint8_t)channelIDs[i];
+			if (args.cpu_format == "fc32") config.format = StreamConfig::STREAM_COMPLEX_FLOAT32;
+			else if (args.cpu_format == "sc16") config.format = StreamConfig::STREAM_12_BIT_IN_16;
+			else throw uhd::runtime_error("OpenUSRP::LimeRxStream(format=" + args.cpu_format + ") unsupported format");
+
+			//create the stream
+			size_t stream_id(~0);
+			const int status = _conn->SetupStream(stream_id, config);
+			if (status != 0)
+				throw uhd::runtime_error("OpenUSRP::LimeRxStream() failed: ");
+			streamID.push_back(stream_id);
+		}
 
 	}
 
 	~LimeRxStream(void) {
 
-		_device->deactivateStream(_stream, 0, 0);
-		_device->closeStream(_stream);
+		if (_activated) {
+
+			for (auto i : streamID)
+				_conn->ControlStream(i, false);
+
+			for (auto i : streamID)
+				_conn->CloseStream(i);
+
+			_activated = false;
+		}
 	}
 
 	size_t get_num_channels(void) const
@@ -355,7 +87,7 @@ public:
 
 	size_t get_max_num_samps(void) const
 	{
-		return _stream->elemMTU;
+		return _conn->GetStreamSize(streamID.front());
 	}
 
 	size_t recv(
@@ -366,150 +98,155 @@ public:
 		const bool one_packet = false
 	) {
 		size_t total = 0;
-		md.reset();
 
-		while (total < nsamps_per_buff)
-		{
-			int flags = 0;
-			if (one_packet) flags |= SOAPY_SDR_ONE_PACKET;
-			long long timeNs = 0;
-			size_t numElems = (nsamps_per_buff - total);
-			for (size_t i = 0; i < _nchan; i++) _offsetBuffs[i] = ((char *)buffs[i]) + total*_stream->elemSize;
-			int ret = _device->readStream(_stream, &(_offsetBuffs[0]), numElems, flags, timeNs, long(timeout*1e6));
-
-			//deal with return error codes
-			switch (ret)
+		if (not _activated) {
+			for (auto i : streamID)
 			{
-			case SOAPY_SDR_TIMEOUT:
-				md.error_code = uhd::rx_metadata_t::ERROR_CODE_TIMEOUT;
-				break;
-
-			case SOAPY_SDR_STREAM_ERROR:
-				md.error_code = uhd::rx_metadata_t::ERROR_CODE_BROKEN_CHAIN;
-				break;
-
-			case SOAPY_SDR_CORRUPTION:
-				md.error_code = uhd::rx_metadata_t::ERROR_CODE_BAD_PACKET;
-				break;
-
-			case SOAPY_SDR_OVERFLOW:
-				md.error_code = uhd::rx_metadata_t::ERROR_CODE_OVERFLOW;
-				break;
-
-			case SOAPY_SDR_TIME_ERROR:
-				md.error_code = uhd::rx_metadata_t::ERROR_CODE_LATE_COMMAND;
-				break;
+				int status = _conn->ControlStream(i, true);
 			}
-			if (ret < 0) break;
-			total += ret;
-
-			//more fragments always over written by last recv
-			md.more_fragments = (flags & SOAPY_SDR_MORE_FRAGMENTS) != 0;
-
-			//apply time if this is the first recv
-			if (total == size_t(ret))
-			{
-				md.has_time_spec = (flags & SOAPY_SDR_HAS_TIME) != 0;
-				md.time_spec = uhd::time_spec_t::from_ticks(timeNs, 1e9);
-			}
-
-			//mark end of burst and exit call
-			if ((flags & SOAPY_SDR_END_BURST) != 0)
-			{
-				md.end_of_burst = true;
-				break;
-			}
-
-			//inline overflow indication
-			if ((flags & SOAPY_SDR_END_ABRUPT) != 0)
-			{
-				md.error_code = uhd::rx_metadata_t::ERROR_CODE_OVERFLOW;
-				break;
-			}
-
-			//one pkt mode, end loop
-			if (one_packet) break;
+			_activated = true;
 		}
 
-		return total;
+		size_t numElems = nsamps_per_buff;
+		if (one_packet)
+			numElems = std::min(numElems, _conn->GetStreamSize(streamID.front()));
+
+		StreamMetadata metadata;
+
+		if (md.has_time_spec) {
+			metadata.hasTimestamp = true;
+			metadata.timestamp = md.time_spec.to_ticks(_conn->GetHardwareTimestampRate());
+		}
+
+		md.reset();
+
+		int bufIndex = 0;
+		int status = 0;
+		for (auto i : streamID)
+		{
+			status = _conn->ReadStream(i, buffs[bufIndex++], numElems, timeout * 1000, metadata);
+
+			if (status == 0) {
+				md.error_code = uhd::rx_metadata_t::ERROR_CODE_TIMEOUT;
+				return 0;
+
+			}
+
+			if (status < 0) {
+				md.error_code = uhd::rx_metadata_t::ERROR_CODE_BROKEN_CHAIN;
+				return 0;
+			}
+
+		}
+
+		if (metadata.hasTimestamp)
+		{
+			md.has_time_spec = true;
+			md.time_spec = uhd::time_spec_t::from_ticks(metadata.timestamp, _conn->GetHardwareTimestampRate());
+		}
+
+		if (metadata.packetDropped)
+			md.error_code = uhd::rx_metadata_t::ERROR_CODE_OVERFLOW;
+
+		if (metadata.endOfBurst)
+			md.end_of_burst = true;
+
+		return status;
 
 	}
 
 	void issue_stream_cmd(const uhd::stream_cmd_t &stream_cmd) {
 
-		int flags = 0;
-		if (not stream_cmd.stream_now) flags |= SOAPY_SDR_HAS_TIME;
-		long long timeNs = stream_cmd.time_spec.to_ticks(1e9);
-		size_t numElems = 0;
-		bool activate = true;
-
 		switch (stream_cmd.stream_mode)
 		{
-		case uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS:
+		case uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS: {
+
+			if (not _activated) {
+				for (auto i : streamID) {
+					int status = _conn->ControlStream(i, true);
+				}
+				_activated = true;
+			}
+		}
 			break;
 
-		case uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS:
-			activate = false;
+		case uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS: {
+
+			if (_activated) {
+				for (auto i : streamID)
+				{
+					_conn->ControlStream(i, false);
+				}
+				_activated = false;
+			}
+		}
+
 			break;
 
 		case uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE:
-			flags |= SOAPY_SDR_END_BURST;
-			numElems = stream_cmd.num_samps;
+			//TODO//
 			break;
 
 		case uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE:
-			numElems = stream_cmd.num_samps;
+			//TODO//
 			break;
 		}
-
-		int ret = 0;
-		if (activate) {
-			if (!_activated) {
-				ret = _device->activateStream(_stream, flags, timeNs, numElems);
-				_activated = true;
-			}
-
-		}
-		else {
-			if (_activated) {
-				ret = _device->deactivateStream(_stream, flags, timeNs);
-				_activated = false;
-			}
-
-		}
-		if (ret != 0) throw uhd::runtime_error(str(boost::format("LimeRxStream::issue_stream_cmd() = %d") % ret));
-
 
 	}
 
 private:
 
-	limesdr_impl * _device;
-	IConnectionStream * _stream;
+	lime::IConnection *_conn;
+	std::vector<size_t> streamID;
+	size_t _elemSize;
 	bool _activated;
 	const size_t _nchan;
-	std::vector<void *> _offsetBuffs;
-
 };
 
 
 class LimeTxStream : public uhd::tx_streamer
 {
 public:
-	LimeTxStream(limesdr_impl * d, const uhd::stream_args_t &args) :
-		_device(d),
-		_stream(d->setupStream(TX_DIRECTION, args)),
+	LimeTxStream(lime::IConnection * c, const uhd::stream_args_t &args) :
+		_conn(c),
 		_nchan(std::max<size_t>(1, args.channels.size())),
 		_activated(false)
 	{
-		_offsetBuffs.resize(_nchan);
+
+		StreamConfig config;
+		config.isTx = true;
+		config.performanceLatency = 0.5;
+
+		//default to channel 0, if none were specified
+		const std::vector<size_t> &channelIDs = args.channels.empty() ? std::vector<size_t>(1, 0) : args.channels;
+
+		for (size_t i = 0; i < channelIDs.size(); ++i)
+		{
+			config.channelID = (uint8_t)channelIDs[i];
+			if (args.cpu_format == "fc32") config.format = StreamConfig::STREAM_COMPLEX_FLOAT32;
+			else if (args.cpu_format == "sc16") config.format = StreamConfig::STREAM_12_BIT_IN_16;
+			else throw uhd::runtime_error("OpenUSRP::LimeTxStream(format=" + args.cpu_format + ") unsupported format");
+
+			//create the stream
+			size_t stream_id(~0);
+			const int status = _conn->SetupStream(stream_id, config);
+			if (status != 0)
+				throw uhd::runtime_error("OpenUSRP::LimeTxStream() failed: ");
+
+			streamID.push_back(stream_id);
+		}
 
 	}
 	~LimeTxStream(void) {
 
 		if (_activated) {
-			_device->deactivateStream(_stream, 0, 0);
-			_device->closeStream(_stream);
+			for (auto i : streamID)
+				_conn->ControlStream(i, false);
+
+			for (auto i : streamID)
+				_conn->CloseStream(i);
+
+			_activated = false;
 		}
 	}
 
@@ -520,7 +257,7 @@ public:
 
 	size_t get_max_num_samps(void) const
 	{
-		return _stream->elemMTU;
+		return _conn->GetStreamSize(streamID.front());
 	}
 
 	size_t send(
@@ -530,101 +267,89 @@ public:
 		const double timeout = 0.1
 	) {
 
-
-
-		size_t nsamps_per_buff = _nsamps_per_buff;
+		size_t numElems = _nsamps_per_buff;
 		size_t total = 0;
-		if (nsamps_per_buff == 0)
+		if (numElems == 0)
 			return 0;
-		const long long timeNs(md.time_spec.to_ticks(1e9));
 
-		if (!_activated) {
-			_device->activateStream(_stream, 0, 0, 0);
+		if (not _activated) {
+			for (auto i : streamID)
+			{
+				int status = _conn->ControlStream(i, true);
+			}
 			_activated = true;
 		}
 
-		while (total < nsamps_per_buff)
-		{
-			int flags = 0;
-			size_t numElems = (nsamps_per_buff - total);
-			if (md.has_time_spec and total == 0) flags |= SOAPY_SDR_HAS_TIME;
-			if (md.end_of_burst) flags |= SOAPY_SDR_END_BURST;
-			for (size_t i = 0; i < _nchan; i++) _offsetBuffs[i] = ((char *)buffs[i]) + total*_stream->elemSize;
-			int ret = _device->writeStream(_stream, &(_offsetBuffs[0]), numElems, flags, timeNs, long(timeout*1e6));
-			if (ret == SOAPY_SDR_TIMEOUT) break;
-			if (ret < 0) throw uhd::runtime_error(str(boost::format("LimeTxStream::send() = %d") % ret));
-			total += ret;
+		StreamMetadata metadata;
+
+		if (md.has_time_spec) {
+			metadata.hasTimestamp = true;
+			metadata.timestamp = md.time_spec.to_ticks(_conn->GetHardwareTimestampRate());
 		}
 
-		return total;
+		if (md.end_of_burst) {
+			metadata.endOfBurst = true;
+		}
+
+		int bufIndex = 0;
+		int status = 0;
+		for (auto i : streamID)
+		{
+			status = _conn->WriteStream(i, buffs[bufIndex++], numElems, timeout * 1000, metadata);
+
+		}
+
+		return status;
+
 	}
 
 	bool recv_async_msg(uhd::async_metadata_t &md, double timeout = 0.1) {
 
-		size_t chanMask = 0;
-		int flags = 0;
-		long long timeNs = 0;
-		int ret = _device->readStreamStatus(_stream, chanMask, flags, timeNs, long(timeout*1e6));
+		StreamMetadata metadata;
+		int channel = 0;
+		for (auto i : streamID) {
 
-		//save the first channel found in the mask
-		md.channel = 0;
-		for (size_t i = 0; i < _nchan; i++)
-		{
-			if ((chanMask & (1 << i)) == 0) continue;
-			md.channel = i;
-			break;
+			md.channel = channel;
+			int ret = _conn->ReadStreamStatus(i, timeout * 1000, metadata);
+			if (ret != 0) {
+				return false;
+			}
+			channel++;
 		}
 
-		//convert the time
-		md.has_time_spec = (flags & SOAPY_SDR_HAS_TIME) != 0;
-		md.time_spec = uhd::time_spec_t::from_ticks(timeNs, 1e9);
-
-		//check flags
-		if ((flags & SOAPY_SDR_END_BURST) != 0)
-		{
+		if (metadata.endOfBurst)
 			md.event_code = uhd::async_metadata_t::EVENT_CODE_BURST_ACK;
+
+		if (metadata.hasTimestamp) {
+			md.has_time_spec = true;
+			md.time_spec = uhd::time_spec_t::from_ticks(metadata.timestamp, _conn->GetHardwareTimestampRate());
 		}
 
-		//set event code based on ret
-		switch (ret)
-		{
-		case SOAPY_SDR_TIMEOUT: return false;
-
-		case SOAPY_SDR_STREAM_ERROR:
-			md.event_code = uhd::async_metadata_t::EVENT_CODE_SEQ_ERROR;
-			break;
-
-		case SOAPY_SDR_NOT_SUPPORTED:
-			md.event_code = uhd::async_metadata_t::EVENT_CODE_USER_PAYLOAD;
-			break;
-
-		case SOAPY_SDR_TIME_ERROR:
-			md.event_code = uhd::async_metadata_t::EVENT_CODE_TIME_ERROR;
-			break;
-
-		case SOAPY_SDR_UNDERFLOW:
+		if (metadata.packetDropped) {
 			md.event_code = uhd::async_metadata_t::EVENT_CODE_UNDERFLOW;
-			break;
+			return true;
 		}
 
+		if (metadata.lateTimestamp) {
+			md.event_code = uhd::async_metadata_t::EVENT_CODE_TIME_ERROR;
+			return true;
+		}
 		return true;
 	}
 
 private:
-	limesdr_impl * _device;
-	IConnectionStream * _stream;
 
+	lime::IConnection *_conn;
+	std::vector<size_t> streamID;
 	bool _activated;
 	const size_t _nchan;
-	std::vector<const void *> _offsetBuffs;
 
 };
 
 uhd::rx_streamer::sptr limesdr_impl::get_rx_stream(const uhd::stream_args_t &args)
 {
 
-	//   this->update_enables();
-	uhd::rx_streamer::sptr stream(new LimeRxStream(this, args));
+	uhd::rx_streamer::sptr stream(new LimeRxStream(_conn, args));
 	BOOST_FOREACH(const size_t ch, args.channels) _rx_streamers[ch] = stream;
 	if (args.channels.empty()) _rx_streamers[0] = stream;
 	return stream;
@@ -633,8 +358,8 @@ uhd::rx_streamer::sptr limesdr_impl::get_rx_stream(const uhd::stream_args_t &arg
 
 uhd::tx_streamer::sptr limesdr_impl::get_tx_stream(const uhd::stream_args_t &args)
 {
-	//  this->update_enables();
-	uhd::tx_streamer::sptr stream(new LimeTxStream(this, args));
+
+	uhd::tx_streamer::sptr stream(new LimeTxStream(_conn, args));
 	BOOST_FOREACH(const size_t ch, args.channels) _tx_streamers[ch] = stream;
 	if (args.channels.empty()) _tx_streamers[0] = stream;
 	return stream;
@@ -655,7 +380,6 @@ uhd::meta_range_t limesdr_impl::getSampleRange(const uhd::direction_t direction,
 	boost::unique_lock<boost::recursive_mutex> lock(_accessMutex);
 	auto rfic = getRFIC(channel);
 	const auto lmsDir = (direction == TX_DIRECTION) ? LMS7002M::Tx : LMS7002M::Rx;
-	//std::vector<double> rates;
 
 	std::vector<double> rates;
 
@@ -1404,9 +1128,7 @@ void limesdr_impl::setHardwareTime(const std::string &what, const uhd::time_spec
 {
 	if (what == "NOW")
 	{
-		auto rate = _conn->GetHardwareTimestampRate();
-		auto ticks = timeNsToTicks(time.to_ticks(1e9), rate);
-		_conn->SetHardwareTimestamp(ticks);
+		_conn->SetHardwareTimestamp(time.to_ticks(_conn->GetHardwareTimestampRate()));
 	}
 	else
 	{
@@ -1419,9 +1141,7 @@ uhd::time_spec_t limesdr_impl::getHardwareTime(const std::string &what) {
 
 	uhd::time_spec_t time;
 	if (what == "NOW") {
-		auto ticks = _conn->GetHardwareTimestamp();
-		auto rate = _conn->GetHardwareTimestampRate();
-		time = uhd::time_spec_t::from_ticks(ticksToTimeNs(ticks, rate), 1e9);
+		time = uhd::time_spec_t::from_ticks(_conn->GetHardwareTimestamp(), _conn->GetHardwareTimestampRate());
 	}
 	else if (what == "PPS")
 	{

@@ -159,8 +159,6 @@ MESSAGE(STATUS "Configuring Boost C++ Libraries...")
 SET(BOOST_REQUIRED_COMPONENTS
     thread
     system
-    chrono
-    date_time
     atomic
 )
 
