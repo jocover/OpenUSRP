@@ -348,6 +348,8 @@ private:
 
 uhd::rx_streamer::sptr limesdr_impl::get_rx_stream(const uhd::stream_args_t &args)
 {
+	if (not _rx_streamers[0].expired())
+		return _rx_streamers[0].lock();
 
 	uhd::rx_streamer::sptr stream(new LimeRxStream(_conn, args));
 	BOOST_FOREACH(const size_t ch, args.channels) _rx_streamers[ch] = stream;
@@ -358,6 +360,8 @@ uhd::rx_streamer::sptr limesdr_impl::get_rx_stream(const uhd::stream_args_t &arg
 
 uhd::tx_streamer::sptr limesdr_impl::get_tx_stream(const uhd::stream_args_t &args)
 {
+	if (not _tx_streamers[0].expired())
+		return _tx_streamers[0].lock();
 
 	uhd::tx_streamer::sptr stream(new LimeTxStream(_conn, args));
 	BOOST_FOREACH(const size_t ch, args.channels) _tx_streamers[ch] = stream;
