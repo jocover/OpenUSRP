@@ -1174,7 +1174,7 @@ void limesdr_impl::setMasterClockRate(const double rate) {
 
 	fakeMasterClock = rate;
 
-#else
+#endif
 
 	boost::unique_lock<boost::recursive_mutex> lock(_accessMutex);
 
@@ -1189,7 +1189,7 @@ void limesdr_impl::setMasterClockRate(const double rate) {
 		rfic->SetFrequencyCGEN(rate);
 	}
 
-#endif
+
 
 }
 

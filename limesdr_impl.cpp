@@ -275,7 +275,11 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 
 	double defaultClockRate = device_addr.cast<double>("master_clock_rate", DEFAULT_CLOCK_RATE);
 
+#ifdef ENABLE_MAUNAL_CLOCK
 	_tree->access<double>(mb_path / "tick_rate").set(defaultClockRate);
+#else
+	_tree->access<double>(mb_path / "tick_rate").set(DEFAULT_CLOCK_RATE);
+#endif
 
 
 	for (size_t channel = 0; channel < _rfics.size() * 2; channel++)
