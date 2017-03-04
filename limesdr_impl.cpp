@@ -278,7 +278,15 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 #ifdef ENABLE_MAUNAL_CLOCK
 	_tree->access<double>(mb_path / "tick_rate").set(defaultClockRate);
 #else
-	_tree->access<double>(mb_path / "tick_rate").set(DEFAULT_CLOCK_RATE);
+	fakeMasterClock = defaultClockRate;
+
+	for (auto rfic : _rfics)
+	{
+		//make tx rx rates equal
+		rfic->Modify_SPI_Reg_bits(LMS7param(EN_ADCCLKH_CLKGN), 0);
+		rfic->Modify_SPI_Reg_bits(LMS7param(CLKH_OV_CLKL_CGEN), 2);
+		rfic->SetFrequencyCGEN(DEFAULT_CLOCK_RATE);
+	}
 #endif
 
 
