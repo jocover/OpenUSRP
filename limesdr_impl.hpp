@@ -119,6 +119,13 @@ private:
 	std::vector<lime::LMS7002M *> _rfics;
 	boost::recursive_mutex _accessMutex;
 
+#ifndef ENABLE_MAUNAL_CLOCK
+
+	double fakeMasterClock;
+
+#endif // ENABLE_MAUNAL_CLOCK
+
+
 	bool _autoTickRate;
 	std::map<size_t, bool> _fixedRxSampRate;
 	std::map<size_t, bool> _fixedTxSampRate;

@@ -77,6 +77,12 @@ endif()
     
 ENDIF(ENABLE_LIMESDR)
 
+option(ENABLE_MAUNAL_CLOCK "enable manual master clock" OFF)
+if (ENABLE_MAUNAL_CLOCK)
+message(STATUS "  Enable manual master clock feature")
+add_definitions(-DENABLE_MAUNAL_CLOCK)
+endif (ENABLE_MAUNAL_CLOCK)
+
 else()
 
 #UHD MODULE mode
@@ -149,6 +155,12 @@ INCLUDE_DIRECTORIES(${LIMESUITE_INCLUDE_DIRS})
 
 message(STATUS "LimeSuite include directories: ${LIMESUITE_INCLUDE_DIRS}")
 message(STATUS "LimeSuite libraries: ${LIMESUITE_LIBRARIES}")
+
+option(ENABLE_MAUNAL_CLOCK "enable manual master clock" OFF)
+if (ENABLE_MAUNAL_CLOCK)
+message(STATUS "  Enable manual master clock feature")
+add_definitions(-DENABLE_MAUNAL_CLOCK)
+endif (ENABLE_MAUNAL_CLOCK)
 
 ########################################################################
 # Setup boost

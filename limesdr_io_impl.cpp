@@ -387,7 +387,7 @@ uhd::meta_range_t limesdr_impl::getSampleRange(const uhd::direction_t direction,
 
 	std::vector<double> rates;
 
-	const double clockRate = this->getMasterClockRate();
+	const double clockRate = _rfics.front()->GetFrequencyCGEN();
 	const double dacFactor = clockRate / rfic->GetReferenceClk_TSP(LMS7002M::Tx);
 	const double adcFactor = clockRate / rfic->GetReferenceClk_TSP(LMS7002M::Rx);
 	const double dspRate = rfic->GetReferenceClk_TSP(lmsDir);
@@ -517,7 +517,7 @@ void limesdr_impl::setSampleRate(const uhd::direction_t direction, const size_t 
 	LMS7002M_SelfCalState state(rfic);
 	const auto lmsDir = (direction == TX_DIRECTION) ? LMS7002M::Tx : LMS7002M::Rx;
 
-	double clockRate = this->getMasterClockRate();
+	double clockRate = _rfics.front()->GetFrequencyCGEN();
 	const double dspFactor = clockRate / rfic->GetReferenceClk_TSP(lmsDir);
 
 	//select automatic clock rate
@@ -1158,11 +1158,23 @@ uhd::time_spec_t limesdr_impl::getHardwareTime(const std::string &what) {
 
 double limesdr_impl::getMasterClockRate(void) {
 
+#ifndef ENABLE_MAUNAL_CLOCK
+
+	return fakeMasterClock;
+
+#else
 	boost::unique_lock<boost::recursive_mutex> lock(_accessMutex);
 	//assume same rate for all RFIC in this wrapper
 	return _rfics.front()->GetFrequencyCGEN();
+#endif
 }
 void limesdr_impl::setMasterClockRate(const double rate) {
+
+#ifndef ENABLE_MAUNAL_CLOCK
+
+	fakeMasterClock = rate;
+
+#else
 
 	boost::unique_lock<boost::recursive_mutex> lock(_accessMutex);
 
@@ -1177,6 +1189,8 @@ void limesdr_impl::setMasterClockRate(const double rate) {
 		rfic->SetFrequencyCGEN(rate);
 	}
 
+#endif
+
 }
 
 uhd::filter_info_base::sptr limesdr_impl::getFilter(const uhd::direction_t dir, const size_t channel, const std::string &name) {
@@ -1190,6 +1204,10 @@ void limesdr_impl::setFilter(const uhd::direction_t dir, const size_t channel, c
 
 void limesdr_impl::setAutoTickRate(const bool enable) {
 
+#ifdef ENABLE_MAUNAL_CLOCK
 	_autoTickRate = enable;
+#else
+	_autoTickRate = true;
+#endif // ENABLE_MAUNAL_CLOCK
 
 }
