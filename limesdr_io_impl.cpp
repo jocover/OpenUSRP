@@ -24,6 +24,10 @@
 #include <map>
 #include <algorithm>
 #include <set>
+#include <boost/chrono.hpp>
+#include <boost/thread/thread.hpp> 
+#include <boost/date_time/posix_time/posix_time.hpp>
+
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -99,12 +103,16 @@ public:
 	) {
 		size_t total = 0;
 
+		const auto exitTime = boost::chrono::high_resolution_clock::now() + boost::chrono::microseconds(long(timeout*1e6));
+
 		if (not _activated) {
-			for (auto i : streamID)
-			{
-				int status = _conn->ControlStream(i, true);
+
+			while (boost::chrono::high_resolution_clock::now() < exitTime) {
+				boost::this_thread::sleep_for(boost::chrono::milliseconds(10));		
 			}
-			_activated = true;
+
+			md.error_code = uhd::rx_metadata_t::ERROR_CODE_TIMEOUT;
+			return 0;
 		}
 
 		size_t numElems = nsamps_per_buff;
