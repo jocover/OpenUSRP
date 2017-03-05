@@ -1067,36 +1067,8 @@ uhd::usrp::subdev_spec_t  limesdr_impl::get_frontend_mapping(const uhd::directio
 
 	uhd::usrp::subdev_spec_t spec;
 
-	const std::string dirName((dir == RX_DIRECTION) ? "rx" : "tx");
-
-
-
-	if (dir == RX_DIRECTION) {
-
-
-		for (size_t i = 0; i < _rx_frontend_map.size(); i++) {
-			subdev_spec_pair_t chan;
-			chan.db_name = "A";
-			chan.sd_name = (_rx_frontend_map[i] == 0) ? "A" : "B";
-
-			spec.push_back(chan);
-		}
-
-	}
-
-	if (dir == TX_DIRECTION) {
-
-
-		for (size_t i = 0; i < _tx_frontend_map.size(); i++) {
-			subdev_spec_pair_t chan;
-			chan.db_name = "A";
-			chan.sd_name = (_tx_frontend_map[i] == 0) ? "A" : "B";
-
-			spec.push_back(chan);
-		}
-
-	}
-
+	spec.push_back(subdev_spec_pair_t("A", "A"));
+	spec.push_back(subdev_spec_pair_t("A", "B"));
 
 	return spec;
 }
