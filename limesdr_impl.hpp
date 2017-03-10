@@ -67,20 +67,6 @@ namespace lime
 	class LMS7002M;
 }
 
-struct IConnectionStream
-{
-	std::vector<size_t> streamID;
-	int direction;
-	size_t elemSize;
-	size_t elemMTU;
-
-	//rx cmd requests
-	bool hasCmd;
-	int flags;
-	long long timeNs;
-	size_t numElems;
-};
-
 
 class limesdr_impl : public uhd::device {
 
@@ -93,21 +79,6 @@ public:
 	uhd::tx_streamer::sptr get_tx_stream(const uhd::stream_args_t &args);
 	bool recv_async_msg(uhd::async_metadata_t &, double);
 
-	IConnectionStream* setupStream(const uhd::direction_t dir,const uhd::stream_args_t &args);
-
-	void closeStream(IConnectionStream* stream);
-
-	int activateStream(IConnectionStream* stream, const int flags, const long long timeNs, const size_t numElems);
-
-	int deactivateStream(IConnectionStream* stream, const int flags, const long long timeNs);
-
-	int readStream(IConnectionStream* stream, void * const *buffs, size_t numElems, int &flags, long long &timeNs, const long timeoutUs);
-
-	int writeStream(IConnectionStream *stream, const void * const *buffs, const size_t numElems, int &flags, const long long timeNs, const long timeoutUs);
-
-	int readStreamStatus(IConnectionStream *stream, size_t &chanMask, int &flags, long long &timeNs, const long timeoutUs);
-
-	
 
 private:
 	
