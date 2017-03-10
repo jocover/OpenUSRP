@@ -355,17 +355,32 @@ public:
 
 	bool recv_async_msg(uhd::async_metadata_t &md, double timeout = 0.1) {
 
-		StreamMetadata metadata;
-		int channel = 0;
-		for (auto i : streamID) {
+		auto start = boost::chrono::high_resolution_clock::now();
 
-			md.channel = channel;
-			int ret = _conn->ReadStreamStatus(i, timeout * 1000, metadata);
-			if (ret != 0) {
-				return false;
+		StreamMetadata metadata;
+
+		while (true) {
+			int channel = 0;
+			for (auto i : streamID) {
+
+				md.channel = channel;
+				int ret = _conn->ReadStreamStatus(i, timeout * 1000, metadata);
+				if (ret != 0) {
+					return false;
+				}
+				channel++;
 			}
-			channel++;
+
+			if (metadata.endOfBurst || metadata.lateTimestamp || metadata.packetDropped)
+				break;
+
+			boost::chrono::duration<double> seconds = boost::chrono::high_resolution_clock::now() - start;
+			if (seconds.count()> (double)timeout)
+				return false;
+
+			boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
 		}
+		
 
 		if (metadata.endOfBurst)
 			md.event_code = uhd::async_metadata_t::EVENT_CODE_BURST_ACK;
