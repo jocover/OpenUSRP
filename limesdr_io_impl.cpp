@@ -44,7 +44,8 @@ public:
 		_conn(c),
 		_elemSize(uhd::convert::get_bytes_per_item(args.cpu_format)),
 		_nchan(std::max<size_t>(1, args.channels.size())),
-		_activated(false)
+		_activated(false),
+		_fc64(false)
 	{
 		StreamConfig config;
 		config.isTx = false;
@@ -58,6 +59,10 @@ public:
 			config.channelID = (uint8_t)channelIDs[i];
 			if (args.cpu_format == "fc32") config.format = StreamConfig::STREAM_COMPLEX_FLOAT32;
 			else if (args.cpu_format == "sc16") config.format = StreamConfig::STREAM_12_BIT_IN_16;
+			else if (args.cpu_format == "fc64") {
+				config.format = StreamConfig::STREAM_COMPLEX_FLOAT32;
+				_fc64 = true;
+			}
 			else throw uhd::runtime_error("OpenUSRP::LimeRxStream(format=" + args.cpu_format + ") unsupported format");
 
 			//create the stream
@@ -108,7 +113,7 @@ public:
 		if (not _activated) {
 
 			while (boost::chrono::high_resolution_clock::now() < exitTime) {
-				boost::this_thread::sleep_for(boost::chrono::milliseconds(10));		
+				boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
 			}
 
 			md.error_code = uhd::rx_metadata_t::ERROR_CODE_TIMEOUT;
@@ -132,7 +137,22 @@ public:
 		int status = 0;
 		for (auto i : streamID)
 		{
-			status = _conn->ReadStream(i, buffs[bufIndex++], numElems, timeout * 1000, metadata);
+			if (_fc64) {
+
+				float *buffer = new float[numElems * 2];
+
+				status = _conn->ReadStream(i, buffer, numElems, timeout * 1000, metadata);
+
+				double *ptr = (double*)buffs[bufIndex++];
+				for (size_t i = 0; i < numElems * 2; i++)
+					ptr[i] = (double)buffer[i];
+
+				delete[] buffer;
+			}
+			else {
+				status = _conn->ReadStream(i, buffs[bufIndex++], numElems, timeout * 1000, metadata);
+			}
+
 
 			if (status == 0) {
 				md.error_code = uhd::rx_metadata_t::ERROR_CODE_TIMEOUT;
@@ -205,6 +225,7 @@ public:
 private:
 
 	lime::IConnection *_conn;
+	bool _fc64;
 	std::vector<size_t> streamID;
 	size_t _elemSize;
 	bool _activated;
@@ -218,7 +239,8 @@ public:
 	LimeTxStream(lime::IConnection * c, const uhd::stream_args_t &args) :
 		_conn(c),
 		_nchan(std::max<size_t>(1, args.channels.size())),
-		_activated(false)
+		_activated(false),
+		_fc64(false)
 	{
 
 		StreamConfig config;
@@ -233,6 +255,10 @@ public:
 			config.channelID = (uint8_t)channelIDs[i];
 			if (args.cpu_format == "fc32") config.format = StreamConfig::STREAM_COMPLEX_FLOAT32;
 			else if (args.cpu_format == "sc16") config.format = StreamConfig::STREAM_12_BIT_IN_16;
+			else if (args.cpu_format == "fc64") {
+				config.format = StreamConfig::STREAM_COMPLEX_FLOAT32;
+				_fc64 = true;
+			}
 			else throw uhd::runtime_error("OpenUSRP::LimeTxStream(format=" + args.cpu_format + ") unsupported format");
 
 			//create the stream
@@ -303,7 +329,23 @@ public:
 		int status = 0;
 		for (auto i : streamID)
 		{
-			status = _conn->WriteStream(i, buffs[bufIndex++], numElems, timeout * 1000, metadata);
+			if (_fc64) {
+
+				float *buffer = new float[numElems * 2];
+
+				double *ptr = (double*)buffs[bufIndex++];
+
+				for (size_t i = 0; i < numElems * 2; i++)
+					buffer[i] = (float)ptr[i];
+
+				status = _conn->WriteStream(i, buffer, numElems, timeout * 1000, metadata);
+
+				delete[] buffer;
+			}
+			else {
+				status = _conn->WriteStream(i, buffs[bufIndex++], numElems, timeout * 1000, metadata);
+			}
+
 
 		}
 
@@ -349,6 +391,7 @@ private:
 
 	lime::IConnection *_conn;
 	std::vector<size_t> streamID;
+	bool _fc64;
 	bool _activated;
 	const size_t _nchan;
 
