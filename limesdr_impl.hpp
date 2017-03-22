@@ -62,12 +62,6 @@
 
 static const double DEFAULT_CLOCK_RATE = 80e6;
 
-namespace lime
-{
-	class LMS7002M;
-}
-
-
 class limesdr_impl : public uhd::device {
 
 public:

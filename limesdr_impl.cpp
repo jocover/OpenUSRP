@@ -60,29 +60,6 @@ static device_addr_t handleToArgs(const ConnectionHandle &handle)
 	return args;
 }
 
-class LMS7002M_withLogging : public LMS7002M
-{
-public:
-	LMS7002M_withLogging(void) :
-		LMS7002M()
-	{
-		return;
-	}
-
-protected:
-	void Log(const char* text, LogType type)
-	{
-		switch (type)
-		{
-		case LOG_INFO: std::cout << text << std::endl; break;
-		case LOG_WARNING: std::cout << text << std::endl; break;
-		case LOG_ERROR: std::cout << text << std::endl; break;
-		case LOG_DATA: std::cout << "0X" <<std::hex << text << std::endl; break;
-		}
-	}
-};
-
-
 static device_addrs_t limesdr_find(const device_addr_t &hint) {
 	device_addrs_t limesdr_addrs;
 
@@ -239,9 +216,8 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 	std::map<size_t, std::shared_ptr<LMS7002M_SelfCalState>> calStates;
 
 	for (size_t i = 0; i < numRFICs; i++) {
-		//	_rfics.push_back(new LMS7002M_withLogging());
 
-		_rfics.push_back(new LMS7002M_withLogging());
+		_rfics.push_back(new LMS7002M());
 		_rfics.back()->SetConnection(_conn, i);
 
 		int st;
