@@ -114,6 +114,7 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 
 	std::cout << "Using OpenUSRP" << std::endl;
 
+
 	_conn = ConnectionRegistry::makeConnection(handle);
 
 	if (_conn == nullptr) throw uhd::runtime_error(
@@ -213,8 +214,6 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 	// setup radio control
 	////////////////////////////////////////////////////////////////////
 
-	std::map<size_t, std::shared_ptr<LMS7002M_SelfCalState>> calStates;
-
 	for (size_t i = 0; i < numRFICs; i++) {
 
 		_rfics.push_back(new LMS7002M());
@@ -230,10 +229,6 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 
 		st = _rfics.back()->UploadAll();
 		if (st != 0) throw uhd::runtime_error("UploadAll() failed");
-
-		calStates[i].reset(new LMS7002M_SelfCalState(_rfics.back()));
-
-
 
 	}
 

@@ -33,9 +33,12 @@ using namespace uhd;
 using namespace uhd::usrp;
 using namespace lime;
 
+#define MIN_CGEN_RATE 6.4e6
 #define MAX_CGEN_RATE 640e6
 #define MIN_SAMP_RATE 1e5
-#define MAX_SAMP_RATE 60e6
+#define MAX_SAMP_RATE 65e6
+#define CGEN_DEADZONE_LO 450e6
+#define CGEN_DEADZONE_HI 491.5e6
 
 class LimeRxStream : public uhd::rx_streamer {
 public:
@@ -417,19 +420,6 @@ uhd::rx_streamer::sptr limesdr_impl::get_rx_stream(const uhd::stream_args_t &arg
 	if (not _rx_streamers[0].expired())
 		return _rx_streamers[0].lock();
 
-	BOOST_FOREACH(const size_t ch, args.channels) {
-		_channelsToCal.emplace(RX_DIRECTION, ch);
-	}
-
-	while (not _channelsToCal.empty())
-	{
-		auto dir = _channelsToCal.begin()->first;
-		auto ch = _channelsToCal.begin()->second;
-		if (dir == RX_DIRECTION) getRFIC(ch)->CalibrateRx(_actualBw.at(dir).at(ch));
-		if (dir == TX_DIRECTION) getRFIC(ch)->CalibrateTx(_actualBw.at(dir).at(ch));
-		_channelsToCal.erase(_channelsToCal.begin());
-	}
-
 	uhd::rx_streamer::sptr stream(new LimeRxStream(_conn, args));
 	BOOST_FOREACH(const size_t ch, args.channels) _rx_streamers[ch] = stream;
 	if (args.channels.empty()) _rx_streamers[0] = stream;
@@ -441,19 +431,6 @@ uhd::tx_streamer::sptr limesdr_impl::get_tx_stream(const uhd::stream_args_t &arg
 {
 	if (not _tx_streamers[0].expired())
 		return _tx_streamers[0].lock();
-
-	BOOST_FOREACH(const size_t ch, args.channels) {
-		_channelsToCal.emplace(TX_DIRECTION, ch);
-	}
-
-	while (not _channelsToCal.empty())
-	{
-		auto dir = _channelsToCal.begin()->first;
-		auto ch = _channelsToCal.begin()->second;
-		if (dir == RX_DIRECTION) getRFIC(ch)->CalibrateRx(_actualBw.at(dir).at(ch));
-		if (dir == TX_DIRECTION) getRFIC(ch)->CalibrateTx(_actualBw.at(dir).at(ch));
-		_channelsToCal.erase(_channelsToCal.begin());
-	}
 
 	uhd::tx_streamer::sptr stream(new LimeTxStream(_conn, args));
 	BOOST_FOREACH(const size_t ch, args.channels) _tx_streamers[ch] = stream;
@@ -500,6 +477,8 @@ uhd::meta_range_t limesdr_impl::getSampleRange(const uhd::direction_t direction,
 		for (int iTx = 32; iTx >= 2; iTx /= 2)
 		{
 			const double clockRate = txRate*dacFactor*iTx;
+			if (clockRate > MAX_CGEN_RATE) continue;
+			if (clockRate > CGEN_DEADZONE_LO and clockRate < CGEN_DEADZONE_HI)  continue;
 			for (int iRx = 32; iRx >= 2; iRx /= 2)
 			{
 				const double rxRate = clockRate / (adcFactor*iRx);
@@ -568,13 +547,11 @@ static double calculateClockRate(
 {
 	double bestClockRate = 0.0;
 
-
-
 	for (int decim = 2; decim <= 32; decim *= 2)
 	{
 		const double rateClock = rateRx*decim*adcFactorRx;
 		if (rateClock > MAX_CGEN_RATE) continue;
-		if (rateClock > 450e6 && rateClock < 491.5e6) continue; //avoid range where CGEN does not lock
+		if (rateClock > CGEN_DEADZONE_LO  && rateClock < CGEN_DEADZONE_HI) continue; //avoid range where CGEN does not lock
 		if (rateClock < bestClockRate) continue;
 		for (int interp = 2; interp <= 32; interp *= 2)
 		{
@@ -830,7 +807,6 @@ void limesdr_impl::setBandwidth(const uhd::direction_t direction, const size_t c
 	auto saveDcMode = this->getDCOffsetMode(direction, channel);
 
 	auto rfic = getRFIC(channel);
-	LMS7002M_SelfCalState state(rfic);
 
 	_actualBw[direction][channel] = bw;
 
