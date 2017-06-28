@@ -84,6 +84,8 @@ private:
 	std::vector<lime::LMS7002M *> _rfics;
 	boost::recursive_mutex _accessMutex;
 
+	std::set<std::pair<uhd::direction_t, size_t>> _channelsToCal;
+
 #ifndef ENABLE_MAUNAL_CLOCK
 
 	double fakeMasterClock;

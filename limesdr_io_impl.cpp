@@ -417,6 +417,19 @@ uhd::rx_streamer::sptr limesdr_impl::get_rx_stream(const uhd::stream_args_t &arg
 	if (not _rx_streamers[0].expired())
 		return _rx_streamers[0].lock();
 
+	BOOST_FOREACH(const size_t ch, args.channels) {
+		_channelsToCal.emplace(RX_DIRECTION, ch);
+	}
+
+	while (not _channelsToCal.empty())
+	{
+		auto dir = _channelsToCal.begin()->first;
+		auto ch = _channelsToCal.begin()->second;
+		if (dir == RX_DIRECTION) getRFIC(ch)->CalibrateRx(_actualBw.at(dir).at(ch));
+		if (dir == TX_DIRECTION) getRFIC(ch)->CalibrateTx(_actualBw.at(dir).at(ch));
+		_channelsToCal.erase(_channelsToCal.begin());
+	}
+
 	uhd::rx_streamer::sptr stream(new LimeRxStream(_conn, args));
 	BOOST_FOREACH(const size_t ch, args.channels) _rx_streamers[ch] = stream;
 	if (args.channels.empty()) _rx_streamers[0] = stream;
@@ -428,6 +441,19 @@ uhd::tx_streamer::sptr limesdr_impl::get_tx_stream(const uhd::stream_args_t &arg
 {
 	if (not _tx_streamers[0].expired())
 		return _tx_streamers[0].lock();
+
+	BOOST_FOREACH(const size_t ch, args.channels) {
+		_channelsToCal.emplace(TX_DIRECTION, ch);
+	}
+
+	while (not _channelsToCal.empty())
+	{
+		auto dir = _channelsToCal.begin()->first;
+		auto ch = _channelsToCal.begin()->second;
+		if (dir == RX_DIRECTION) getRFIC(ch)->CalibrateRx(_actualBw.at(dir).at(ch));
+		if (dir == TX_DIRECTION) getRFIC(ch)->CalibrateTx(_actualBw.at(dir).at(ch));
+		_channelsToCal.erase(_channelsToCal.begin());
+	}
 
 	uhd::tx_streamer::sptr stream(new LimeTxStream(_conn, args));
 	BOOST_FOREACH(const size_t ch, args.channels) _tx_streamers[ch] = stream;
@@ -685,19 +711,8 @@ void limesdr_impl::setFrequency(const uhd::direction_t direction, const size_t c
 		if (targetRfFreq < 30e6) targetRfFreq = 30e6;
 		if (targetRfFreq > 3.8e9) targetRfFreq = 3.8e9;
 		rfic->SetFrequencySX(lmsDir, targetRfFreq);
-
-		//apply corrections to channel A
-		rfic->SetActiveChannel(LMS7002M::ChA);
-		if (rfic->ApplyDigitalCorrections(lmsDir) != 0)
-		{
-
-		}
-		//success, now channel B (ignore errors)
-		else
-		{
-			rfic->SetActiveChannel(LMS7002M::ChB);
-			rfic->ApplyDigitalCorrections(lmsDir);
-		}
+		
+		_channelsToCal.emplace(direction, channel);
 
 		return;
 	}
@@ -785,6 +800,8 @@ void limesdr_impl::setAntenna(const uhd::direction_t direction, const size_t cha
 		rfic->SetBandTRF(band);
 	}
 
+	_channelsToCal.emplace(direction, channel);
+
 }
 
 
@@ -839,6 +856,9 @@ void limesdr_impl::setBandwidth(const uhd::direction_t direction, const size_t c
 
 	//restore dc offset mode
 	this->setDCOffsetMode(direction, channel, saveDcMode);
+
+	_channelsToCal.emplace(direction, channel);
+
 }
 
 void limesdr_impl::setDCOffsetMode(const uhd::direction_t direction, const size_t channel, const bool automatic) {

@@ -288,6 +288,7 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 
 	_fixedRxSampRate.clear();
 	_fixedTxSampRate.clear();
+	_channelsToCal.clear();
 
 	_tree->create<uhd::time_spec_t>(mb_path / "time" / "now")
 		.publish(boost::bind(&limesdr_impl::getHardwareTime, this, "NOW"))
