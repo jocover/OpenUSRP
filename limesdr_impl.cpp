@@ -267,10 +267,6 @@ limesdr_impl::limesdr_impl(const lime::ConnectionHandle &handle, const uhd::devi
 		this->setFrequency(TX_DIRECTION, channel, "BB", 0.0);
 		this->setAntenna(RX_DIRECTION, channel, "RX2");
 		this->setAntenna(TX_DIRECTION, channel, "TX/RX");
-		this->setGain(RX_DIRECTION, channel, "PGA", 0);
-		this->setGain(RX_DIRECTION, channel, "LNA", 0);
-		this->setGain(RX_DIRECTION, channel, "TIA", 0);
-		this->setGain(TX_DIRECTION, channel, "PAD", -50);
 		this->setSampleRate(RX_DIRECTION, channel, defaultClockRate / 8);
 		this->setSampleRate(TX_DIRECTION, channel, defaultClockRate / 8);
 		this->setBandwidth(RX_DIRECTION, channel, 30e6);
@@ -420,13 +416,13 @@ void limesdr_impl::setup_radio(const size_t dspno) {
 
 
 		if (dir == RX_DIRECTION) {
-			_tree->create<uhd::sensor_value_t>(rf_fe_path / "sensors/rssi");
+			_tree->create<uhd::sensor_value_t>(rf_fe_path / "sensors/rssi").publish(boost::bind(&limesdr_impl::get_rssi, this));
 		}
 
 		_tree->create<meta_range_t>(rf_fe_path / "gains" / "PGA" / "range").publish(boost::bind(&limesdr_impl::getGainRange, this, dir, dspno, "Normal"));
 		_tree->create<double>(rf_fe_path / "gains" / "PGA" / "value")
-			.publish(boost::bind(&limesdr_impl::getGain, this, dir, dspno, "Normal"))
-			.subscribe(boost::bind(&limesdr_impl::setGain, this, dir, dspno, "Normal", _1));
+			.publish(boost::bind(&limesdr_impl::getGain, this, dir, dspno))
+			.subscribe(boost::bind(&limesdr_impl::setGain, this, dir, dspno, _1));
 
 
 		_tree->create<std::string>(rf_fe_path / "connection").set("IQ");

@@ -903,182 +903,139 @@ uhd::meta_range_t limesdr_impl::getBandwidthRange(const uhd::direction_t directi
 	return bws;
 }
 
-double limesdr_impl::getGain(const uhd::direction_t direction, const size_t channel, const std::string &name) {
+double limesdr_impl::getGain(const uhd::direction_t direction, const size_t channel) {
 
 	boost::unique_lock<boost::recursive_mutex> lock(_accessMutex);
 	auto rfic = getRFIC(channel);
 
+	if (rfic->Modify_SPI_Reg_bits(LMS7param(MAC), (channel % 2) + 1, true) != 0)
+		return 0;
 
-	if (direction == TX_DIRECTION and name == "Normal") {
-		double ret = this->getGain(TX_DIRECTION, channel, "PAD");
-		ret /= 63.0;
-		return ret*TX_GAIN_MAX;
+	if (direction==TX_DIRECTION)
+	{
+		int gain = rfic->Get_SPI_Reg_bits(LMS7param(LOSS_MAIN_TXPAD_TRF), true);
+		if (gain <= 10)
+			gain = 52 - gain;
+		else
+			gain = 62 - gain * 2;
+		int bak = rfic->Get_SPI_Reg_bits(LMS7param(CG_IAMP_TBB), true); //backup
+		if (rfic->CalibrateTxGain(0, nullptr) != 0)
+			return 0;
+		int opt = rfic->Get_SPI_Reg_bits(LMS7param(CG_IAMP_TBB), true);
+		gain += 20.0*log10((double)bak / (double)opt) + 0.5;
 
+		rfic->Modify_SPI_Reg_bits(LMS7param(CG_IAMP_TBB), bak, true); //restore
+
+		if (gain > 60)
+			gain = 60;
+
+		return gain/60.0*TX_GAIN_MAX;
 	}
-
-	else if (direction == RX_DIRECTION and name == "Normal") {
-
-		const int max_gain_lna = 30;
+	else
+	{
+		const int max_gain_lna = 27;
 		const int max_gain_tia = 12;
-		const int max_gain_pga = 31;
 
-		int pga = this->getGain(RX_DIRECTION, channel, "PGA");
-		int tia = this->getGain(RX_DIRECTION, channel, "TIA");
-		int lna = this->getGain(RX_DIRECTION, channel, "LNA");
+		int pga = rfic->Get_SPI_Reg_bits(LMS7param(G_PGA_RBB), true);
+		int ret = pga;
 
-		double ret = pga;
-
+		int tia = rfic->Get_SPI_Reg_bits(LMS7param(G_TIA_RFE), true);
 		if (tia == 3)
 			ret += max_gain_tia;
 		else if (tia == 2)
 			ret += max_gain_tia - 3;
 
+		int lna = rfic->Get_SPI_Reg_bits(LMS7param(G_LNA_RFE), true);
+
 		if (lna > 8)
 			ret += (max_gain_lna + lna - 15);
 		else if (lna > 1)
-			ret += (lna - 1) * 3;
+			ret += (lna - 2) * 3;
 
-		ret /= (max_gain_lna + max_gain_tia + max_gain_pga);
-
-		return ret*RX_GAIN_MAX;
+		return ret/70.0*RX_GAIN_MAX;
 	}
 
-	else if (direction == RX_DIRECTION and name == "LNA")
-	{
-		return rfic->GetRFELNA_dB();
-	}
-
-	else if (direction == RX_DIRECTION and name == "LB_LNA")
-	{
-		return rfic->GetRFELoopbackLNA_dB();
-	}
-
-	else if (direction == RX_DIRECTION and name == "TIA")
-	{
-		return rfic->GetRFETIA_dB();
-	}
-
-	else if (direction == RX_DIRECTION and name == "PGA")
-	{
-		return rfic->GetRBBPGA_dB();
-	}
-
-	else if (direction == TX_DIRECTION and name == "PAD")
-	{
-		return rfic->GetTRFPAD_dB();
-	}
-
-	else if (direction == TX_DIRECTION and name == "LB_PAD")
-	{
-		return rfic->GetTRFLoopbackPAD_dB();
-	}
-
-	else throw uhd::runtime_error("OpenUSRP::getGain(" + name + ") - unknown gain name");
+	return 0;
 
 }
 
-void limesdr_impl::setGain(const uhd::direction_t direction, const size_t channel, const std::string &name, const double value) {
+void limesdr_impl::setGain(const uhd::direction_t direction, const size_t channel, const double value) {
 
 	boost::unique_lock<boost::recursive_mutex> lock(_accessMutex);
 
 	auto rfic = getRFIC(channel);
 
-	if (direction == RX_DIRECTION and name == "Normal") {
+	if (rfic->Modify_SPI_Reg_bits(LMS7param(MAC), (channel % 2) + 1, true) != 0)
+		return ;
 
+	double gain;
 
-		double gain = value / RX_GAIN_MAX;
+	if (direction== TX_DIRECTION) //TX valid gain range 0-52
+	{
+		if (rfic->CalibrateTxGain(0, nullptr) != 0) //find optimal BB gain
+			return ;
 
-		const int max_gain_lna = 30;
-		const int max_gain_tia = 12;
-		const int max_gain_pga = 31;
-		const int gain_total = max_gain_lna + max_gain_tia + max_gain_pga;
+		gain = 60.0* value / TX_GAIN_MAX+0.49;
 
-		int target = gain*gain_total + 0.49;
-		unsigned lna = 0, tia = 0, pga = 0;
-
-		//adjust tia gain
-		if (target >= max_gain_tia)
+		//From datasheet: TXPAD: 0<=Loss<=10 – Pout=Pout_max-Loss; 11<=Loss<31 – Pout=Pout_max-10-2*(Loss-10)
+		//therefore MAX TDPAD gain: 52 = 10+21*2
+		if (gain > 52) //increase BB gain over optimal, can cause saturation in amp
 		{
-			tia = 2;
-			target -= max_gain_tia;
+			int gbb = rfic->Get_SPI_Reg_bits(LMS7param(CG_IAMP_TBB), true);
+			double dgain = gain - 52;
+			gain = (double)gbb*pow(10.0, dgain / 20.0) + 0.5;
+			rfic->Modify_SPI_Reg_bits(LMS7param(CG_IAMP_TBB), gain > 63 ? 63 : gain, true);
+			gain = 0;
 		}
-
-		//adjust lna gain
-		if (target >= max_gain_lna)
-		{
-			lna = 14;
-			target -= max_gain_lna;
-		}
-		else if (target < max_gain_lna - 6)
-		{
-			lna = target / 3;
-			target -= lna * 3;
-		}
+		else if (gain >= 42)
+			gain = 52 - gain;
 		else
-		{
-			lna = (max_gain_lna - 6) / 3;
-			target -= lna * 3;
-		}
-
-		//adjust pga gain
-		assert(target <= max_gain_pga);
-		pga = target;
-
-		this->setGain(RX_DIRECTION, channel, "LNA", lna + 1);
-		this->setGain(RX_DIRECTION, channel, "TIA", tia + 1);
-		this->setGain(RX_DIRECTION, channel, "PGA", pga);
-
+			gain = 31 - gain / 2;
+		if (rfic->Modify_SPI_Reg_bits(LMS7param(LOSS_LIN_TXPAD_TRF), gain, true) != 0)
+			return ;
+		if (rfic->Modify_SPI_Reg_bits(LMS7param(LOSS_MAIN_TXPAD_TRF), gain, true) != 0)
+			return ;
 	}
-
-	else if (direction == TX_DIRECTION and name == "Normal") {
-
-		double gain = value / TX_GAIN_MAX;
-
-		int g = (63 * gain + 0.49);
-
-		this->setGain(TX_DIRECTION, channel, "PAD", g);
-
-	}
-
-
-	else if (direction == RX_DIRECTION and name == "LNA")
+	else //Rx valid gain range 0-70
 	{
-		rfic->SetRFELNA_dB(value);
-	}
+		gain = 70.0*value / RX_GAIN_MAX + 0.49;
 
-	else if (direction == RX_DIRECTION and name == "LB_LNA")
-	{
-		rfic->SetRFELoopbackLNA_dB(value);
-	}
+		if (gain > 70) //do not exceed gain table index
+			gain = 70;
+		unsigned lna = 0, tia = 0, pga = 0;
+		//LNA table
+		const unsigned lnaTbl[71] = {
+			1,  1,  1,  2,  2,  2,  3,  3,  3,  4,  4,  4,  5,  5,  5,  6,
+			6,  6,  7,  7,  7,  8,  9,  10, 11, 11, 11, 11, 11, 11, 11, 11,
+			11, 11, 11, 11, 11, 12, 13, 14, 14, 14, 14, 14, 14, 14, 14, 14,
+			14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
+			14, 14, 14, 14, 14, 14, 14
+		};
+		//PGA table
+		const unsigned pgaTbl[71] = {
+			0,  1,  2,  0,  1,  2,  0,  1,  2,  0,  1,  2,  0,  1,  2,  0,
+			1,  2,  0,  1,  2,  0,  0,  0,  0,  1,  2,  3,  4,  5,  6,  7,
+			8,  9,  10, 11, 12, 12, 12, 12, 4,  5,  6,  7,  8,  9,  10, 11,
+			12, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+			25, 26, 27, 28, 29, 30, 31
+		};
 
-	else if (direction == RX_DIRECTION and name == "LB_LNA")
-	{
-		rfic->SetRFELoopbackLNA_dB(value);
-	}
+		//TIA table
+		if (gain > 48)
+			tia = 2;
+		else if (gain > 39)
+			tia = 1;
 
-	else if (direction == RX_DIRECTION and name == "TIA")
-	{
-		rfic->SetRFETIA_dB(value);
-	}
+		lna = lnaTbl[int(gain)];
+		pga = pgaTbl[int(gain)];
 
-	else if (direction == RX_DIRECTION and name == "PGA")
-	{
-		rfic->SetRBBPGA_dB(value);
-	}
+		int rcc_ctl_pga_rbb = (430 * (pow(0.65, ((double)pga / 10))) - 110.35) / 20.4516 + 16; //from datasheet
 
-	else if (direction == TX_DIRECTION and name == "PAD")
-	{
-		rfic->SetTRFPAD_dB(value);
-	}
-
-	else if (direction == TX_DIRECTION and name == "LB_PAD")
-	{
-		rfic->SetTRFLoopbackPAD_dB(value);
-	}
-
-	else if (direction == TX_DIRECTION and name == "LB_PAD")
-	{
-		rfic->SetTRFLoopbackPAD_dB(value);
+		if ((rfic->Modify_SPI_Reg_bits(LMS7param(G_LNA_RFE), lna + 1, true) != 0)
+			|| (rfic->Modify_SPI_Reg_bits(LMS7param(G_TIA_RFE), tia + 1, true) != 0)
+			|| (rfic->Modify_SPI_Reg_bits(LMS7param(G_PGA_RBB), pga, true) != 0)
+			|| (rfic->Modify_SPI_Reg_bits(LMS7param(RCC_CTL_PGA_RBB), rcc_ctl_pga_rbb, true) != 0))
+			return ;
 	}
 
 }
@@ -1243,5 +1200,11 @@ void limesdr_impl::setAutoTickRate(const bool enable) {
 #else
 	_autoTickRate = true;
 #endif // ENABLE_MAUNAL_CLOCK
+
+}
+
+uhd::sensor_value_t limesdr_impl::get_rssi(void) {
+
+	return sensor_value_t("RSSI", 0, "dB");
 
 }

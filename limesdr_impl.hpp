@@ -120,8 +120,8 @@ private:
 	double getSampleRate(const uhd::direction_t dir, const size_t channel);
 	void setSampleRate(const uhd::direction_t dir, const size_t channel, const double rate);
 
-	double getGain(const uhd::direction_t dir, const size_t channel, const std::string &name);
-	void setGain(const uhd::direction_t dir, const size_t channel, const std::string &name, const double gain);
+	double getGain(const uhd::direction_t dir, const size_t channel);
+	void setGain(const uhd::direction_t dir, const size_t channel, const double gain);
 	uhd::meta_range_t getGainRange(const uhd::direction_t dir, const size_t chan, const std::string &name);
 
 	double getFrequency(const uhd::direction_t dir, const size_t channel, const std::string &name);
@@ -156,6 +156,8 @@ private:
 	void setup_radio(const size_t dspno);
 
 	uhd::sensor_value_t get_ref_locked(void);
+
+	uhd::sensor_value_t get_rssi(void);
 
 	uhd::sensor_value_t get_lo_locked(const uhd::direction_t dir, const size_t channel);
 
