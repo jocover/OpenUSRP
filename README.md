@@ -1,6 +1,6 @@
 # OpenUSRP
 
-OpenUSRP can using LimeSDR to simulate USRP B210 Device
+OpenUSRP uses a LimeSDR to simulate a USRP B210 device.
 
 Build Status
 ------------
@@ -11,32 +11,33 @@ AppVeyor: [![Build status](https://ci.appveyor.com/api/projects/status/a0h6dwl3w
 
 Dependencies
 ------------
-LimeSuite: [https://github.com/myriadrf/LimeSuite.git][1]
 
-Boost: [http://www.boost.org/users/download/][2]
-
-UHD (optional):[https://github.com/EttusResearch/uhd.git][3]
+- LimeSuite: [https://github.com/myriadrf/LimeSuite.git][1]
+- Boost: [http://www.boost.org/users/download/][2]
+- UHD (optional): [https://github.com/EttusResearch/uhd.git][3]
 
 Installation
-----------
+------------
 
-LIBUHD mode
+### LIBUHD mode
 
 ```sh
 git clone https://github.com/EttusResearch/uhd.git
 cd uhd/host/lib/usrp
 git clone https://github.com/jocover/OpenUSRP.git
 ```
-add line INCLUDE_SUBDIRECTORY(OpenUSRP) to uhd/host/lib/usrp/CMakeLists.txt file
+
+Add the line `INCLUDE_SUBDIRECTORY(OpenUSRP)` to the `uhd/host/lib/usrp/CMakeLists.txt` file.
+
 ```sh
-echo "INCLUDE_SUBDIRECTORY(OpenUSRP)">>CMakeLists.txt
+echo "INCLUDE_SUBDIRECTORY(OpenUSRP)" >> CMakeLists.txt
 
 ```
-Rebuild UHD driver
-[Building and Installing UHD from source][4]
 
-----------
-UHD MODULE mode
+Then, rebuild the UHD driver. See [Building and Installing UHD from source][4].
+
+
+### UHD MODULE mode
 ```sh
 git clone https://github.com/jocover/OpenUSRP.git
 mkdir build && cd build
@@ -46,12 +47,37 @@ sudo make install
 sudo ldconfig
 ```
 
-add environment variable to .bashrc
+After the steps above, add the `UHD_MODULE_PATH` environment variable to your system.
+
+```sh
+echo 'export UHD_MODULE_PATH=/usr/lib/uhd/modules' | sudo tee --append /etc/environment
+# Alternatively, add it for just a user:
+# echo 'export UHD_MODULE_PATH=/usr/lib/uhd/modules' >> ~/.bashrc 
 ```
-echo 'export UHD_MODULE_PATH=/usr/lib/uhd/modules' >> ~/.bashrc 
+
+Testing
+-------
+
+```sh
+dave@intel:~$ uhd_find_devices
+linux; GNU C++ version 5.4.0 20160609; Boost_105800; UHD_003.010.001.001-release
+
+--------------------------------------------------
+-- UHD Device 0
+--------------------------------------------------
+Device Address:
+    type: b200
+    product: B210
+    module: STREAM
+    media: USB 3.0
+    name: LimeSDR-USB
+    serial: 0009060A02430E1E
+
 ```
-Windows Binarie
----------
+
+Windows Binaries
+----------------
+
 x86 version:[OpenUSRP_x86.zip][5]
 
 x64 version:[OpenUSRP_x64.zip][6]
