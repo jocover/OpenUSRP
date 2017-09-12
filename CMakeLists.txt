@@ -209,12 +209,12 @@ message(STATUS "Boost libraries: ${Boost_LIBRARIES}")
 # Build a UHD module to support OpenUSRP
 ########################################################################
 # Targets
-add_library(OpenUSPR SHARED limesdr_impl.cpp limesdr_io_impl.cpp)
-target_link_libraries(OpenUSPR
+add_library(OpenUSRP SHARED limesdr_impl.cpp limesdr_io_impl.cpp)
+target_link_libraries(OpenUSRP
     ${UHD_LIBRARIES}
     ${Boost_LIBRARIES}
     ${LIMESUITE_LIBRARIES})
-install(TARGETS OpenUSPR
+install(TARGETS OpenUSRP
     DESTINATION ${UHD_ROOT}/lib${LIB_SUFFIX}/uhd/modules
 )
 
