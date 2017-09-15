@@ -417,8 +417,19 @@ private:
 
 uhd::rx_streamer::sptr limesdr_impl::get_rx_stream(const uhd::stream_args_t &args)
 {
+	boost::unique_lock<boost::recursive_mutex> lock(_accessMutex);
+
 	if (not _rx_streamers[0].expired())
 		return _rx_streamers[0].lock();
+
+    	while (not _channelsToCal.empty())
+    	{
+        	auto dir  = _channelsToCal.begin()->first;
+        	auto ch  = _channelsToCal.begin()->second;
+        	if (dir == RX_DIRECTION) getRFIC(ch)->CalibrateRx(_actualBw.at(dir).at(ch));
+        	if (dir == TX_DIRECTION) getRFIC(ch)->CalibrateTx(_actualBw.at(dir).at(ch));
+        	_channelsToCal.erase(_channelsToCal.begin());
+   	}
 
 	uhd::rx_streamer::sptr stream(new LimeRxStream(_conn, args));
 	BOOST_FOREACH(const size_t ch, args.channels) _rx_streamers[ch] = stream;
@@ -429,8 +440,19 @@ uhd::rx_streamer::sptr limesdr_impl::get_rx_stream(const uhd::stream_args_t &arg
 
 uhd::tx_streamer::sptr limesdr_impl::get_tx_stream(const uhd::stream_args_t &args)
 {
+	boost::unique_lock<boost::recursive_mutex> lock(_accessMutex);
+
 	if (not _tx_streamers[0].expired())
 		return _tx_streamers[0].lock();
+
+    	while (not _channelsToCal.empty())
+    	{
+        	auto dir  = _channelsToCal.begin()->first;
+        	auto ch  = _channelsToCal.begin()->second;
+        	if (dir == RX_DIRECTION) getRFIC(ch)->CalibrateRx(_actualBw.at(dir).at(ch));
+        	if (dir == TX_DIRECTION) getRFIC(ch)->CalibrateTx(_actualBw.at(dir).at(ch));
+        	_channelsToCal.erase(_channelsToCal.begin());
+   	}
 
 	uhd::tx_streamer::sptr stream(new LimeTxStream(_conn, args));
 	BOOST_FOREACH(const size_t ch, args.channels) _tx_streamers[ch] = stream;
