@@ -78,14 +78,11 @@ Device Address:
 Windows Binaries
 ----------------
 
-x86 version:[OpenUSRP_x86.zip][5]
-
-x64 version:[OpenUSRP_x64.zip][6]
+LabVIEW for LimeSDR :[LabVIEW_for_LimeSDR.zip][5]
 
 
   [1]: https://github.com/myriadrf/LimeSuite.git
   [2]: http://www.boost.org/users/download/
   [3]: https://github.com/EttusResearch/uhd.git
   [4]: http://files.ettus.com/manual/page_build_guide.html
-  [5]: https://www.jiangwei.org/download/OpenUSRP_x86.zip
-  [6]: https://www.jiangwei.org/download/OpenUSRP_x64.zip
+  [5]: https://www.jiangwei.org/wp-content/files/LabVIEW_for_LimeSDR.zip
