@@ -34,7 +34,7 @@ before_install:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install -qq libusb-1.0-0-dev libboost-all-dev;fi;
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install libusb; fi
 
-  - pip install mako
+  - sudo pip install mako
 
 install:
   # install LimeSuite from source
