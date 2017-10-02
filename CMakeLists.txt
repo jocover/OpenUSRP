@@ -172,6 +172,7 @@ SET(BOOST_REQUIRED_COMPONENTS
     thread
     system
     atomic
+    chrono
 )
 
 if(UNIX AND NOT BOOST_ROOT AND EXISTS "/usr/lib64")
