@@ -40,6 +40,7 @@ Then, rebuild the UHD driver. See [Building and Installing UHD from source][4].
 ### UHD MODULE mode
 ```sh
 git clone https://github.com/jocover/OpenUSRP.git
+cd OpenUSRP
 mkdir build && cd build
 cmake ..
 make -j4
